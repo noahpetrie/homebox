@@ -4,10 +4,17 @@
   import MdiCollapseAllOutline from "~icons/mdi/collapse-all-outline";
   import MdiExpandAllOutline from "~icons/mdi/expand-all-outline";
   import MdiPackageVariant from "~icons/mdi/package-variant";
+  import MdiMapMarker from "~icons/mdi/map-marker";
+  import MdiPlus from "~icons/mdi/plus";
+  import MdiViewGridOutline from "~icons/mdi/view-grid-outline";
+  import MdiFileTreeOutline from "~icons/mdi/file-tree-outline";
+  import { Badge } from "@/components/ui/badge";
+  import { Card } from "@/components/ui/card";
+  import { DialogID } from "@/components/ui/dialog-provider/utils";
+  import { useDialog } from "@/components/ui/dialog-provider";
+  import type { EntitySummary, TreeItem } from "~/lib/api/types/data-contracts";
 
   import { Button, ButtonGroup } from "@/components/ui/button";
-  import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-  import type { TreeItem } from "~/lib/api/types/data-contracts";
   import BaseContainer from "@/components/Base/Container.vue";
   import BaseSectionHeader from "@/components/Base/SectionHeader.vue";
   import LocationTreeRoot from "~/components/Location/Tree/Root.vue";
@@ -108,63 +115,209 @@
 
     openItemChildren(tree.value);
   }
+
+  // ---- Home fork: card view (default) -------------------------------------
+  // One card per top-level location with its item count, a strip of item photos
+  // and the sub-locations inside it. The tree is still one click away.
+  const { openDialog } = useDialog();
+  const VIEW_KEY = "homebox:locationsView";
+  const view = ref<"cards" | "tree">("cards");
+  onMounted(() => {
+    try {
+      if (localStorage.getItem(VIEW_KEY) === "tree") view.value = "tree";
+    } catch {
+      // storage unavailable (private mode); stay on cards
+    }
+  });
+  watch(view, v => {
+    try {
+      localStorage.setItem(VIEW_KEY, v);
+    } catch {
+      // storage unavailable; the choice just isn't remembered
+    }
+  });
+
+  const { data: locationSummaries } = useAsyncData(async () => {
+    const { data } = await api.items.getLocations({ filterChildren: false });
+    return data ?? [];
+  });
+  const { data: allItems } = useAsyncData(async () => {
+    const { data } = await api.items.getAll({ pageSize: 1000, orderBy: "createdAt" });
+    return data?.items ?? [];
+  });
+
+  type LocationCard = {
+    id: string;
+    name: string;
+    description: string;
+    children: { id: string; name: string }[];
+    count: number;
+    previews: EntitySummary[];
+  };
+
+  const locationCards = computed<LocationCard[]>(() => {
+    const summaries = new Map((locationSummaries.value ?? []).map(l => [l.id, l]));
+    const byParent = new Map<string, EntitySummary[]>();
+    for (const it of allItems.value ?? []) {
+      const pid = it.parent?.id;
+      if (!pid) continue;
+      if (!byParent.has(pid)) byParent.set(pid, []);
+      byParent.get(pid)!.push(it);
+    }
+    const isLoc = (n: TreeItem) => n.type === "location";
+    const collect = (node: TreeItem): EntitySummary[] => [
+      ...(byParent.get(node.id) ?? []),
+      ...node.children.filter(isLoc).flatMap(collect),
+    ];
+
+    return (tree.value ?? [])
+      .filter(isLoc)
+      .map(node => {
+        const items = collect(node);
+        const withPhoto = items.filter(i => i.imageId);
+        return {
+          id: node.id,
+          name: node.name,
+          description: summaries.get(node.id)?.description ?? "",
+          children: node.children.filter(isLoc).map(c => ({ id: c.id, name: c.name })),
+          count: items.length,
+          // newest first, photos first
+          previews: [...withPhoto].reverse().slice(0, 6),
+        };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name));
+  });
+
+  const totalItems = computed(() => (allItems.value ?? []).length);
+
+  function thumbUrl(item: EntitySummary) {
+    return api.authURL(`/entities/${item.id}/attachments/${item.thumbnailId || item.imageId}`);
+  }
+
+  function newLocation() {
+    openDialog(DialogID.CreateEntity, { params: { baseType: "location" } });
+  }
 </script>
 
 <template>
   <BaseContainer>
-    <div class="mb-2 flex justify-between">
-      <BaseSectionHeader> {{ $t("menu.locations") }} </BaseSectionHeader>
+    <div class="mb-4 flex flex-wrap items-end justify-between gap-3">
       <div>
-        <TooltipProvider :delay-duration="0">
-          <ButtonGroup>
-            <Tooltip>
-              <TooltipTrigger>
-                <Button size="icon" variant="outline" data-pos="start" @click="openAll">
-                  <MdiExpandAllOutline />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{{ $t("locations.expand_tree") }}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger>
-                <Button size="icon" variant="outline" data-pos="middle" @click="closeAll">
-                  <MdiCollapseAllOutline />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{{ $t("locations.collapse_tree") }}</p>
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger>
-                <Button
-                  size="icon"
-                  :variant="showItems ? 'default' : 'outline'"
-                  data-pos="end"
-                  @click="showItems = !showItems"
-                >
-                  <MdiPackageVariant />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>
-                <p>{{ showItems ? $t("locations.hide_items") : $t("locations.show_items") }}</p>
-              </TooltipContent>
-            </Tooltip>
-          </ButtonGroup>
-        </TooltipProvider>
+        <BaseSectionHeader class="pb-0"> {{ $t("menu.locations") }} </BaseSectionHeader>
+        <p v-if="locationCards.length" class="text-sm text-muted-foreground">
+          {{ locationCards.length }} {{ locationCards.length === 1 ? "location" : "locations" }} · {{ totalItems }}
+          {{ totalItems === 1 ? "item" : "items" }}
+        </p>
+      </div>
+      <div class="flex flex-wrap items-center gap-2">
+        <ButtonGroup>
+          <Button
+            size="sm"
+            :variant="view === 'cards' ? 'default' : 'outline'"
+            data-pos="start"
+            @click="view = 'cards'"
+          >
+            <MdiViewGridOutline class="mr-1" /> Cards
+          </Button>
+          <Button size="sm" :variant="view === 'tree' ? 'default' : 'outline'" data-pos="end" @click="view = 'tree'">
+            <MdiFileTreeOutline class="mr-1" /> Tree
+          </Button>
+        </ButtonGroup>
+        <Button size="sm" @click="newLocation"> <MdiPlus class="mr-1" /> New location </Button>
       </div>
     </div>
-    <BaseCard>
-      <div class="p-2">
-        <LocationTreeRoot
-          v-if="tree && Array.isArray(tree)"
-          :locs="tree"
-          :tree-id="locationTreeId"
-          :show-items="showItems"
-        />
+
+    <!-- Card view -->
+    <div v-if="view === 'cards'" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <NuxtLink v-for="loc in locationCards" :key="loc.id" :to="`/location/${loc.id}`" class="group">
+        <Card
+          class="flex h-full flex-col gap-3 p-4 transition-colors group-hover:border-primary/60"
+          :class="{ 'opacity-75': loc.count === 0 && loc.children.length === 0 }"
+        >
+          <div class="flex items-start gap-3">
+            <div class="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
+              <MdiMapMarker class="size-5" />
+            </div>
+            <div class="min-w-0 grow">
+              <h3 class="truncate text-base font-semibold group-hover:underline">{{ loc.name }}</h3>
+              <p class="truncate text-sm text-muted-foreground">
+                {{ loc.description || (loc.count === 0 ? "Empty" : "") }}
+              </p>
+            </div>
+            <Badge :variant="loc.count ? 'default' : 'outline'" class="shrink-0">
+              {{ loc.count }} {{ loc.count === 1 ? "item" : "items" }}
+            </Badge>
+          </div>
+
+          <div v-if="loc.previews.length" class="flex items-end gap-1.5">
+            <img
+              v-for="p in loc.previews"
+              :key="p.id"
+              :src="thumbUrl(p)"
+              :alt="p.name"
+              :title="p.name"
+              loading="lazy"
+              class="h-16 w-11 rounded-sm border bg-muted object-cover shadow-sm"
+            />
+            <span v-if="loc.count > loc.previews.length" class="pb-1 pl-1 text-xs text-muted-foreground">
+              +{{ loc.count - loc.previews.length }}
+            </span>
+          </div>
+          <div
+            v-else-if="loc.count === 0"
+            class="flex h-16 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground"
+          >
+            Nothing here yet
+          </div>
+
+          <div v-if="loc.children.length" class="flex flex-wrap gap-1 text-xs">
+            <span class="text-muted-foreground">Inside:</span>
+            <NuxtLink
+              v-for="c in loc.children"
+              :key="c.id"
+              :to="`/location/${c.id}`"
+              class="rounded bg-accent px-1.5 py-0.5 text-accent-foreground hover:underline"
+              @click.stop
+            >
+              {{ c.name }}
+            </NuxtLink>
+          </div>
+        </Card>
+      </NuxtLink>
+
+      <button
+        type="button"
+        class="flex min-h-32 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-sm text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
+        @click="newLocation"
+      >
+        <MdiPlus class="size-6" />
+        New location
+      </button>
+    </div>
+
+    <!-- Tree view -->
+    <template v-else>
+      <div class="mb-2 flex flex-wrap justify-end gap-2">
+        <Button size="sm" variant="outline" @click="openAll">
+          <MdiExpandAllOutline class="mr-1" /> {{ $t("locations.expand_tree") }}
+        </Button>
+        <Button size="sm" variant="outline" @click="closeAll">
+          <MdiCollapseAllOutline class="mr-1" /> {{ $t("locations.collapse_tree") }}
+        </Button>
+        <Button size="sm" :variant="showItems ? 'default' : 'outline'" @click="showItems = !showItems">
+          <MdiPackageVariant class="mr-1" /> {{ showItems ? $t("locations.hide_items") : $t("locations.show_items") }}
+        </Button>
       </div>
-    </BaseCard>
+      <BaseCard>
+        <div class="p-2">
+          <LocationTreeRoot
+            v-if="tree && Array.isArray(tree)"
+            :locs="tree"
+            :tree-id="locationTreeId"
+            :show-items="showItems"
+          />
+        </div>
+      </BaseCard>
+    </template>
   </BaseContainer>
 </template>
