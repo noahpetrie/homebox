@@ -107,7 +107,7 @@
                         <span>{{ n.name.value }}</span>
                       </SidebarMenuLink>
                       <CollapsibleTrigger as-child>
-                        <SidebarMenuButton class="flex size-12 items-center justify-center">
+                        <SidebarMenuButton class="flex size-12 items-center justify-center group-data-[collapsible=icon]:hidden">
                           <MdiChevronRight
                             class="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                           />
