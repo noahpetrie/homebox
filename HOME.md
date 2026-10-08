@@ -10,6 +10,8 @@ AGPL requires.
   a custom field ("ISBN" for 978/979 codes, otherwise "Barcode"), and fills Manufacturer
   and Model Number from the lookup (ISBN as model number for books). UPCitemDB results
   use the publisher when there is no brand.
+- **Item cards.** Photos sit on a plain muted backdrop with a soft shadow instead of a
+  blurred copy of themselves; the quantity badge is hidden when it is 1.
 
 ## Updating to a new upstream release
 
