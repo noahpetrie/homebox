@@ -44,7 +44,6 @@
 
   const route = useRoute();
   const api = useUserApi();
-  const preferences = useViewPreferences();
 
   const locationId = computed<string>(() => route.params.id as string);
 
@@ -185,11 +184,8 @@
       }),
     ];
 
-    if (!preferences.value.showEmpty) {
-      return filterZeroValues(ret);
-    }
-
-    return ret;
+    // Home fork: a location's details card only shows what's filled in.
+    return filterZeroValues(ret);
   });
 
   const { data: items, refresh: refreshItemList } = useAsyncData(
