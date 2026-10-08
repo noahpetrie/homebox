@@ -170,22 +170,25 @@
       ...node.children.filter(isLoc).flatMap(collect),
     ];
 
-    return (tree.value ?? [])
-      .filter(isLoc)
-      .map(node => {
-        const items = collect(node);
-        const withPhoto = items.filter(i => i.imageId);
-        return {
-          id: node.id,
-          name: node.name,
-          description: summaries.get(node.id)?.description ?? "",
-          children: node.children.filter(isLoc).map(c => ({ id: c.id, name: c.name })),
-          count: items.length,
-          // newest first, photos first
-          previews: [...withPhoto].reverse().slice(0, 6),
-        };
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
+    return (
+      (tree.value ?? [])
+        .filter(isLoc)
+        .map(node => {
+          const items = collect(node);
+          const withPhoto = items.filter(i => i.imageId);
+          return {
+            id: node.id,
+            name: node.name,
+            description: summaries.get(node.id)?.description ?? "",
+            children: node.children.filter(isLoc).map(c => ({ id: c.id, name: c.name })),
+            count: items.length,
+            // newest first, photos first
+            previews: [...withPhoto].reverse().slice(0, 8),
+          };
+        })
+        // locations with things in them first, then alphabetical
+        .sort((a, b) => Number(b.count > 0) - Number(a.count > 0) || a.name.localeCompare(b.name))
+    );
   });
 
   const totalItems = computed(() => (allItems.value ?? []).length);
@@ -232,7 +235,7 @@
       <NuxtLink v-for="loc in locationCards" :key="loc.id" :to="`/location/${loc.id}`" class="group">
         <Card
           class="flex h-full flex-col gap-3 p-4 transition-colors group-hover:border-primary/60"
-          :class="{ 'opacity-75': loc.count === 0 && loc.children.length === 0 }"
+          :class="{ 'bg-card/60 shadow-none': loc.count === 0 }"
         >
           <div class="flex items-start gap-3">
             <div class="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
@@ -240,16 +243,13 @@
             </div>
             <div class="min-w-0 grow">
               <h3 class="truncate text-base font-semibold group-hover:underline">{{ loc.name }}</h3>
-              <p class="truncate text-sm text-muted-foreground">
-                {{ loc.description || (loc.count === 0 ? "Empty" : "") }}
-              </p>
+              <p v-if="loc.description" class="truncate text-sm text-muted-foreground">{{ loc.description }}</p>
             </div>
-            <Badge :variant="loc.count ? 'default' : 'outline'" class="shrink-0">
-              {{ loc.count }} {{ loc.count === 1 ? "item" : "items" }}
-            </Badge>
+            <Badge v-if="loc.count" class="shrink-0">{{ loc.count }} {{ loc.count === 1 ? "item" : "items" }}</Badge>
+            <span v-else class="shrink-0 pt-0.5 text-xs text-muted-foreground">Empty</span>
           </div>
 
-          <div v-if="loc.previews.length" class="flex items-end gap-1.5">
+          <div v-if="loc.previews.length" class="flex items-end gap-1.5 overflow-hidden">
             <img
               v-for="p in loc.previews"
               :key="p.id"
@@ -262,12 +262,6 @@
             <span v-if="loc.count > loc.previews.length" class="pb-1 pl-1 text-xs text-muted-foreground">
               +{{ loc.count - loc.previews.length }}
             </span>
-          </div>
-          <div
-            v-else-if="loc.count === 0"
-            class="flex h-16 items-center justify-center rounded-md border border-dashed text-xs text-muted-foreground"
-          >
-            Nothing here yet
           </div>
 
           <div v-if="loc.children.length" class="flex flex-wrap gap-1 text-xs">
@@ -287,7 +281,7 @@
 
       <button
         type="button"
-        class="flex min-h-32 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-sm text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
+        class="flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-sm text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
         @click="newLocation"
       >
         <MdiPlus class="size-6" />
