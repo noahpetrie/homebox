@@ -12,6 +12,9 @@ AGPL requires.
   use the publisher when there is no brand.
 - **Item cards.** Photos sit on a plain muted backdrop with a soft shadow instead of a
   blurred copy of themselves; the quantity badge is hidden when it is 1.
+- **Faster scanner.** Product barcodes are decoded with zxing-cpp (WebAssembly) from a
+  1080p stream on the best back camera (iPhone multi-lens cameras, not telephoto), and the
+  lookup opens as soon as a code is read twice; aiming box; AR mode is explained.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
