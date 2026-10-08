@@ -751,7 +751,7 @@
                   </DropdownMenuItem>
                   <DropdownMenuItem @click="labelMaker?.openPrint()">
                     <MdiPrinterPos class="mr-2 size-4" />
-                    {{ $t("components.global.label_maker.browser_print") }}
+                    {{ $t("components.global.label_maker.print") }}
                   </DropdownMenuItem>
                   <DropdownMenuItem @click="labelMaker?.openQrCode()">
                     <MdiQrcode class="mr-2 size-4" />

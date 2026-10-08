@@ -437,6 +437,7 @@
         "api_failure": "Backend API call failed: "
     },
     "global": {
+        "more_actions": "More actions",
         "add": "Add",
         "archived": "Archived",
         "build": "Build: { build }",
