@@ -249,32 +249,28 @@
             <span v-else class="shrink-0 pt-0.5 text-xs text-muted-foreground">Empty</span>
           </div>
 
-          <div v-if="loc.previews.length" class="flex items-end gap-1.5 overflow-hidden">
-            <img
-              v-for="p in loc.previews"
-              :key="p.id"
-              :src="thumbUrl(p)"
-              :alt="p.name"
-              :title="p.name"
-              loading="lazy"
-              class="h-16 w-11 rounded-sm border bg-muted object-cover shadow-sm"
-            />
-            <span v-if="loc.count > loc.previews.length" class="pb-1 pl-1 text-xs text-muted-foreground">
-              +{{ loc.count - loc.previews.length }}
+          <div v-if="loc.previews.length" class="flex items-end gap-2">
+            <div class="flex min-w-0 grow gap-1.5 overflow-hidden">
+              <img
+                v-for="p in loc.previews"
+                :key="p.id"
+                :src="thumbUrl(p)"
+                :alt="p.name"
+                :title="p.name"
+                loading="lazy"
+                class="h-16 w-11 shrink-0 rounded-sm border bg-muted object-cover shadow-sm"
+              />
+            </div>
+            <span v-if="loc.count > loc.previews.length" class="shrink-0 pb-1 text-xs text-muted-foreground">
+              +{{ loc.count - loc.previews.length }} more
             </span>
           </div>
 
           <div v-if="loc.children.length" class="flex flex-wrap gap-1 text-xs">
             <span class="text-muted-foreground">Inside:</span>
-            <NuxtLink
-              v-for="c in loc.children"
-              :key="c.id"
-              :to="`/location/${c.id}`"
-              class="rounded bg-accent px-1.5 py-0.5 text-accent-foreground hover:underline"
-              @click.stop
-            >
+            <span v-for="c in loc.children" :key="c.id" class="rounded bg-accent px-1.5 py-0.5 text-accent-foreground">
               {{ c.name }}
-            </NuxtLink>
+            </span>
           </div>
         </Card>
       </NuxtLink>
