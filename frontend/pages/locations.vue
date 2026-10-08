@@ -191,6 +191,9 @@
     );
   });
 
+  const filledLocations = computed(() => locationCards.value.filter(l => l.count > 0 || l.children.length > 0));
+  const emptyLocations = computed(() => locationCards.value.filter(l => l.count === 0 && l.children.length === 0));
+
   const totalItems = computed(() => (allItems.value ?? []).length);
 
   function thumbUrl(item: EntitySummary) {
@@ -230,60 +233,76 @@
       </div>
     </div>
 
-    <!-- Card view -->
-    <div v-if="view === 'cards'" class="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-      <NuxtLink v-for="loc in locationCards" :key="loc.id" :to="`/location/${loc.id}`" class="group">
-        <Card
-          class="flex h-full flex-col gap-3 p-4 transition-colors group-hover:border-primary/60"
-          :class="{ 'bg-card/60 shadow-none': loc.count === 0 }"
+    <!-- Card view: rooms with things in them as cards, empty rooms as a compact strip -->
+    <template v-if="view === 'cards'">
+      <div class="grid grid-cols-1 items-start gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        <NuxtLink v-for="loc in filledLocations" :key="loc.id" :to="`/location/${loc.id}`" class="group">
+          <Card class="flex flex-col gap-3 p-4 transition-colors group-hover:border-primary/60">
+            <div class="flex items-start gap-3">
+              <div class="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
+                <MdiMapMarker class="size-5" />
+              </div>
+              <div class="min-w-0 grow">
+                <h3 class="truncate text-base font-semibold group-hover:underline">{{ loc.name }}</h3>
+                <p v-if="loc.description" class="truncate text-sm text-muted-foreground">{{ loc.description }}</p>
+              </div>
+              <Badge class="shrink-0">{{ loc.count }} {{ loc.count === 1 ? "item" : "items" }}</Badge>
+            </div>
+
+            <div v-if="loc.previews.length" class="flex items-center gap-2">
+              <div class="flex h-16 min-w-0 grow items-center gap-1.5 overflow-hidden">
+                <!-- book covers keep their shape; other photos get a square tile showing the whole photo -->
+                <img
+                  v-for="p in loc.previews"
+                  :key="p.id"
+                  :src="thumbUrl(p)"
+                  :alt="p.name"
+                  :title="p.name"
+                  loading="lazy"
+                  class="h-16 shrink-0 rounded-sm border shadow-sm"
+                  :class="p.entityType?.name === 'Book' ? 'w-11 object-cover' : 'w-16 bg-white object-contain p-1'"
+                />
+              </div>
+              <span v-if="loc.count > loc.previews.length" class="shrink-0 text-xs text-muted-foreground">
+                +{{ loc.count - loc.previews.length }} more
+              </span>
+            </div>
+
+            <div v-if="loc.children.length" class="flex flex-wrap gap-1 text-xs">
+              <span class="text-muted-foreground">Inside:</span>
+              <span
+                v-for="c in loc.children"
+                :key="c.id"
+                class="rounded bg-accent px-1.5 py-0.5 text-accent-foreground"
+              >
+                {{ c.name }}
+              </span>
+            </div>
+          </Card>
+        </NuxtLink>
+      </div>
+
+      <div class="mt-4 flex flex-wrap items-center gap-2 text-sm">
+        <span v-if="emptyLocations.length" class="mr-1 text-muted-foreground">Empty:</span>
+        <NuxtLink
+          v-for="loc in emptyLocations"
+          :key="loc.id"
+          :to="`/location/${loc.id}`"
+          class="flex items-center gap-1.5 rounded-full border bg-card px-3 py-1.5 hover:border-primary/60"
         >
-          <div class="flex items-start gap-3">
-            <div class="flex size-9 shrink-0 items-center justify-center rounded-md bg-accent text-accent-foreground">
-              <MdiMapMarker class="size-5" />
-            </div>
-            <div class="min-w-0 grow">
-              <h3 class="truncate text-base font-semibold group-hover:underline">{{ loc.name }}</h3>
-              <p v-if="loc.description" class="truncate text-sm text-muted-foreground">{{ loc.description }}</p>
-            </div>
-            <Badge v-if="loc.count" class="shrink-0">{{ loc.count }} {{ loc.count === 1 ? "item" : "items" }}</Badge>
-            <span v-else class="shrink-0 pt-0.5 text-xs text-muted-foreground">Empty</span>
-          </div>
-
-          <div v-if="loc.previews.length" class="flex items-end gap-2">
-            <div class="flex min-w-0 grow gap-1.5 overflow-hidden">
-              <img
-                v-for="p in loc.previews"
-                :key="p.id"
-                :src="thumbUrl(p)"
-                :alt="p.name"
-                :title="p.name"
-                loading="lazy"
-                class="h-16 w-11 shrink-0 rounded-sm border bg-muted object-cover shadow-sm"
-              />
-            </div>
-            <span v-if="loc.count > loc.previews.length" class="shrink-0 pb-1 text-xs text-muted-foreground">
-              +{{ loc.count - loc.previews.length }} more
-            </span>
-          </div>
-
-          <div v-if="loc.children.length" class="flex flex-wrap gap-1 text-xs">
-            <span class="text-muted-foreground">Inside:</span>
-            <span v-for="c in loc.children" :key="c.id" class="rounded bg-accent px-1.5 py-0.5 text-accent-foreground">
-              {{ c.name }}
-            </span>
-          </div>
-        </Card>
-      </NuxtLink>
-
-      <button
-        type="button"
-        class="flex min-h-[4.5rem] flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed text-sm text-muted-foreground transition-colors hover:border-primary/60 hover:text-foreground"
-        @click="newLocation"
-      >
-        <MdiPlus class="size-6" />
-        New location
-      </button>
-    </div>
+          <MdiMapMarker class="size-4 opacity-60" />
+          {{ loc.name }}
+        </NuxtLink>
+        <button
+          type="button"
+          class="flex items-center gap-1 rounded-full border border-dashed border-foreground/30 px-3 py-1.5 text-muted-foreground hover:border-primary hover:text-foreground"
+          @click="newLocation"
+        >
+          <MdiPlus class="size-4" />
+          New location
+        </button>
+      </div>
+    </template>
 
     <!-- Tree view -->
     <template v-else>
