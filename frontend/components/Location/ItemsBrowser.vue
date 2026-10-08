@@ -73,7 +73,7 @@
     const x = extras.value[it.id];
     if (!x) return "";
     if (x.author) return [x.author, x.year].filter(Boolean).join(" · ");
-    return [x.manufacturer, x.model].filter(Boolean).join(" · ");
+    return [x.manufacturer, x.model === x.isbn ? "" : x.model].filter(Boolean).join(" · ");
   }
 
   const visible = computed(() => {

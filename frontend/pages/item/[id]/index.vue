@@ -248,19 +248,18 @@
       };
     });
 
+    const fieldValues = new Set(item.value.fields.map(f => f.textValue).filter(Boolean));
+
     // Home fork: the item's own fields (Author, ISBN, Chip, ...) come first; flags only when set.
     const ret: Details = [
       ...customFields,
-      {
-        name: "items.manufacturer",
-        text: item.value?.manufacturer,
-        copyable: true,
-      },
-      {
-        name: "items.model_number",
-        text: item.value?.modelNumber,
-        copyable: true,
-      },
+      // skip Manufacturer / Model Number when they only repeat a custom field (Publisher, ISBN)
+      ...(showEmpty.value || !fieldValues.has(item.value.manufacturer)
+        ? [{ name: "items.manufacturer", text: item.value?.manufacturer, copyable: true }]
+        : []),
+      ...(showEmpty.value || !fieldValues.has(item.value.modelNumber)
+        ? [{ name: "items.model_number", text: item.value?.modelNumber, copyable: true }]
+        : []),
       {
         name: "items.serial_number",
         text: item.value?.serialNumber,
