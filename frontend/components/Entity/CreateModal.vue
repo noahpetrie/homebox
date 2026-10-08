@@ -574,7 +574,11 @@
 
       if (params.baseType === "item") {
         const lastType = entityTypes.value.find(t => t.id === readLast(LAST_TYPE_KEY) && !t.isLocation);
-        selectedEntityType.value = lastType || entityTypes.value.find(t => !t.isLocation) || null;
+        selectedEntityType.value =
+          lastType ||
+          entityTypes.value.find(t => !t.isLocation && t.name === "Item") ||
+          entityTypes.value.find(t => !t.isLocation) ||
+          null;
         // apply the type's default template (its fields), as picking it by hand would
         if (lastType?.defaultTemplateId && !params.subItem) await onEntityTypeChanged(lastType.id);
 
@@ -604,7 +608,8 @@
           form.name = params.product.item.name;
           form.description = params.product.item.description;
 
-          if (params.product.imageURL) {
+          // only when the server actually fetched the image (a failed fetch leaves it empty)
+          if (params.product.imageURL && params.product.imageBase64?.startsWith("data:")) {
             appendPhotos([
               {
                 photoName: "product_view.jpg",
