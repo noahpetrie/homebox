@@ -53,6 +53,23 @@
     <form class="flex min-w-0 flex-col gap-2" @submit.prevent="create()">
       <LocationSelector v-model="form.location" />
 
+      <div
+        v-if="duplicates.length"
+        class="rounded-lg border-l-4 border-l-amber-500 bg-amber-500/10 p-3 text-sm"
+        role="status"
+      >
+        <p class="font-medium">You already have this</p>
+        <ul class="mt-1">
+          <li v-for="d in duplicates" :key="d.id">
+            <NuxtLink :to="`/item/${d.id}`" class="underline" @click="closeDialog(DialogID.CreateEntity)">
+              {{ d.name }}
+            </NuxtLink>
+            <span v-if="d.parent" class="text-muted-foreground"> · {{ d.parent.name }}</span>
+          </li>
+        </ul>
+        <p class="mt-1 text-muted-foreground">Saving will add another one.</p>
+      </div>
+
       <!-- Template Info Display - Collapsible banner with distinct styling -->
       <div v-if="templateData" class="rounded-lg border-l-4 border-l-primary bg-primary/5 p-3">
         <div class="flex items-start justify-between gap-2">
@@ -162,6 +179,23 @@
         :max-length="255"
         :min-length="1"
       />
+      <PhotoUploader
+        camera
+        :label="
+          $t('components.entity.create_modal.entity_photo', {
+            type: t(selectedEntityType ? selectedEntityType.name : 'global.entity'),
+          })
+        "
+        :button-label="$t('components.entity.create_modal.upload_photos')"
+        :existing-count="form.photos.length"
+        @selected="appendPhotos"
+      />
+      <PhotoUploaderPreview
+        :photos="form.photos"
+        @delete="deletePhotoAt"
+        @rotate="rotatePhotoAt"
+        @set-primary="setPrimaryPhotoAt"
+      />
       <FormTextField
         v-if="!selectedEntityType?.isLocation"
         v-model.number="form.quantity"
@@ -183,16 +217,6 @@
         :max-length="1000"
       />
       <TagSelector v-model="form.tags" :tags="tags ?? []" />
-      <PhotoUploader
-        :label="
-          $t('components.entity.create_modal.entity_photo', {
-            type: t(selectedEntityType ? selectedEntityType.name : 'global.entity'),
-          })
-        "
-        :button-label="$t('components.entity.create_modal.upload_photos')"
-        :existing-count="form.photos.length"
-        @selected="appendPhotos"
-      />
       <div class="mt-4 flex flex-row-reverse">
         <ButtonGroup>
           <Button :disabled="loading" type="submit" class="group">
@@ -211,13 +235,6 @@
           </Button>
         </ButtonGroup>
       </div>
-
-      <PhotoUploaderPreview
-        :photos="form.photos"
-        @delete="deletePhotoAt"
-        @rotate="rotatePhotoAt"
-        @set-primary="setPrimaryPhotoAt"
-      />
     </form>
   </BaseModal>
 </template>
@@ -236,6 +253,7 @@
     EntityTemplateOut,
     EntityTemplateSummary,
     EntityOut,
+    EntitySummary,
     EntityTypeSummary,
   } from "~~/lib/api/types/data-contracts";
   import { useTagStore } from "~/stores/tags";
@@ -321,6 +339,39 @@
   const entityTypes = computed(() => entityTypeStore.allTypes);
   const selectedEntityType = ref<EntityTypeSummary | null>(null);
   const scannedProduct = ref<BarcodeProduct | null>(null);
+
+  // Home fork: remember the last type and location used, so adding several things in a row
+  // (or scan after scan) doesn't mean picking them again each time.
+  const LAST_TYPE_KEY = "homebox:create.lastTypeId";
+  const LAST_LOCATION_KEY = "homebox:create.lastLocationId";
+  const readLast = (key: string) => {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  };
+  const writeLast = (key: string, value: string) => {
+    try {
+      localStorage.setItem(key, value);
+    } catch {
+      // storage unavailable; nothing is remembered
+    }
+  };
+
+  // Home fork: things you already have with the scanned barcode (checked when a scan opens this).
+  const duplicates = ref<EntitySummary[]>([]);
+  async function checkDuplicates(code: string) {
+    duplicates.value = [];
+    const fieldName = /^97[89]\d{10}$/.test(code) ? "ISBN" : "Barcode";
+    const [byField, bySearch] = await Promise.all([
+      api.items.getAll({ fields: [`${fieldName}=${code}`], pageSize: 10 }),
+      api.items.getAll({ q: code, pageSize: 10 }),
+    ]);
+    const seen = new Map<string, EntitySummary>();
+    for (const it of [...(byField.data?.items ?? []), ...(bySearch.data?.items ?? [])]) seen.set(it.id, it);
+    duplicates.value = [...seen.values()];
+  }
 
   async function onEntityTypeChanged(typeId: string) {
     const et = entityTypes.value.find(t => t.id === typeId);
@@ -516,12 +567,16 @@
     const cleanup = registerOpenDialogCallback(DialogID.CreateEntity, async params => {
       subItemCreate.value = false;
       scannedProduct.value = null;
+      duplicates.value = [];
       let parentItemLocationId = null;
       parent.value = {};
       form.parentId = null;
 
       if (params.baseType === "item") {
-        selectedEntityType.value = entityTypes.value.find(t => !t.isLocation) || null;
+        const lastType = entityTypes.value.find(t => t.id === readLast(LAST_TYPE_KEY) && !t.isLocation);
+        selectedEntityType.value = lastType || entityTypes.value.find(t => !t.isLocation) || null;
+        // apply the type's default template (its fields), as picking it by hand would
+        if (lastType?.defaultTemplateId && !params.subItem) await onEntityTypeChanged(lastType.id);
 
         subItemCreate.value = params.subItem;
 
@@ -545,6 +600,7 @@
 
         if (params.product) {
           scannedProduct.value = params.product;
+          if (params.product.barcode) checkDuplicates(params.product.barcode.trim());
           form.name = params.product.item.name;
           form.description = params.product.item.description;
 
@@ -566,7 +622,9 @@
         selectedEntityType.value = entityTypes.value.find(t => t.isLocation) || null;
       }
 
-      const locId = locationId.value ? locationId.value : parentItemLocationId;
+      const locId =
+        (locationId.value ? locationId.value : parentItemLocationId) ||
+        (params.baseType === "item" ? readLast(LAST_LOCATION_KEY) : null);
 
       if (locId) {
         const found = locations.value.find(l => l.id === locId);
@@ -674,7 +732,13 @@
     if (scannedProduct.value && !selectedEntityType.value?.isLocation) {
       await saveScannedIdentifiers(data.id, scannedProduct.value);
     }
+    const wasScanned = !!scannedProduct.value;
     scannedProduct.value = null;
+    duplicates.value = [];
+    if (!selectedEntityType.value?.isLocation) {
+      if (selectedEntityType.value?.id) writeLast(LAST_TYPE_KEY, selectedEntityType.value.id);
+      if (form.location?.id) writeLast(LAST_LOCATION_KEY, form.location.id as string);
+    }
 
     if (form.photos.length > 0) {
       toast.info(t("components.entity.create_modal.toast.uploading_photos", { count: form.photos.length }));
@@ -713,6 +777,13 @@
     showTemplateDetails.value = false;
     focused.value = false;
     loading.value = false;
+
+    if (!close && wasScanned) {
+      // batch scanning: straight back to the camera for the next one
+      toast.info("Ready for the next scan");
+      openDialog(DialogID.Scanner);
+      return;
+    }
 
     if (close) {
       closeDialog(DialogID.CreateEntity);
