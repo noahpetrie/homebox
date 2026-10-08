@@ -14,12 +14,16 @@
         <img
           v-if="imageUrl"
           class="absolute w-full"
-          :class="objectContain ? 'inset-0 h-full object-contain px-4 pb-9 pt-4 item-card-photo' : 'h-[200px] object-cover shadow-md'"
+          :class="
+            objectContain
+              ? 'inset-0 h-full object-contain px-4 pb-9 pt-4 item-card-photo'
+              : 'h-[200px] object-cover shadow-md'
+          "
           loading="lazy"
           :src="imageUrl"
           :alt="item.name"
         />
-        <div class="absolute inset-x-1 bottom-1">
+        <div v-if="!hideLocation" class="absolute inset-x-1 bottom-1">
           <Badge class="text-wrap bg-secondary text-secondary-foreground hover:bg-secondary/70 hover:underline">
             <NuxtLink v-if="item.parent" :to="`/location/${item.parent.id}`">
               {{ locationString }}
@@ -29,7 +33,7 @@
       </div>
       <div class="col-span-4 flex grow flex-col gap-y-1 p-4 pt-2">
         <h2 class="line-clamp-2 text-ellipsis text-wrap text-lg font-bold">{{ item.name }}</h2>
-        <Separator class="mb-1" />
+        <Separator v-if="!subtitle" class="mb-1" />
         <TooltipProvider :delay-duration="0">
           <div class="flex items-center gap-2">
             <Tooltip v-if="item.insured">
@@ -61,7 +65,8 @@
             </Tooltip>
           </div>
         </TooltipProvider>
-        <Markdown class="mb-2 line-clamp-3 text-ellipsis" :source="item.description" />
+        <p v-if="subtitle" class="mb-2 line-clamp-2 text-sm text-muted-foreground">{{ subtitle }}</p>
+        <Markdown v-else class="mb-2 line-clamp-3 text-ellipsis" :source="item.description" />
         <div class="-mr-1 mt-auto flex flex-wrap justify-end gap-2">
           <TagChip v-for="tag in itemTags" :key="tag.id" :tag="tag" size="sm" :ancestors="tag.ancestors" />
         </div>
@@ -115,6 +120,16 @@
       type: Object as () => Row<EntitySummary>,
       required: false,
       default: () => null,
+    },
+    // Home fork: hide the location badge when every card is in the same location.
+    hideLocation: {
+      type: Boolean,
+      default: false,
+    },
+    // Home fork: optional line under the title (e.g. "Author · 2008") shown instead of the description.
+    subtitle: {
+      type: String,
+      default: "",
     },
   });
 

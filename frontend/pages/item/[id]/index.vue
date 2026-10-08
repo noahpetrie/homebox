@@ -67,6 +67,10 @@
     copyPrefixOverride: preferences.value.duplicateSettings.copyPrefixOverride,
   });
 
+  // Home fork: empty fields are hidden unless asked for. Kept separately from the global
+  // showEmpty preference (which defaults to on) so the item page starts uncluttered.
+  const showEmpty = useLocalStorage("homebox:item.showEmpty", false);
+
   const hasNested = computed<boolean>(() => {
     return route.fullPath.split("/").at(-1) !== itemId.value;
   });
@@ -161,6 +165,12 @@
     );
   });
 
+  const primaryPhoto = computed<Photo | null>(() => {
+    if (!item.value || photos.value.length === 0) return null;
+    const primary = item.value.attachments.find(a => a.type === "photo" && a.primary);
+    return photos.value.find(p => p.attachmentId === primary?.id) ?? photos.value[0] ?? null;
+  });
+
   const attachments = computed<FilteredAttachments>(() => {
     if (!item.value) {
       return {
@@ -218,15 +228,32 @@
       return [];
     }
 
+    const customFields: Details = item.value.fields.map(field => {
+      /**
+       * Support Special URL Syntax
+       */
+      const url = maybeUrl(field.textValue);
+      if (url.isUrl) {
+        return {
+          type: "link",
+          name: field.name,
+          text: url.text,
+          href: url.url,
+        } as AnyDetail;
+      }
+
+      return {
+        name: field.name,
+        text: field.textValue,
+      };
+    });
+
+    // Home fork: the item's own fields (Author, ISBN, Chip, ...) come first; flags only when set.
     const ret: Details = [
+      ...customFields,
       {
-        name: "items.quantity",
-        text: item.value?.quantity,
-        slot: "quantity",
-      },
-      {
-        name: "items.serial_number",
-        text: item.value?.serialNumber,
+        name: "items.manufacturer",
+        text: item.value?.manufacturer,
         copyable: true,
       },
       {
@@ -235,46 +262,28 @@
         copyable: true,
       },
       {
-        name: "items.manufacturer",
-        text: item.value?.manufacturer,
+        name: "items.serial_number",
+        text: item.value?.serialNumber,
         copyable: true,
       },
-      {
-        name: "items.insured",
-        text: item.value?.insured ? "Yes" : "No",
-      },
-      {
-        name: "items.archived",
-        text: item.value?.archived ? "Yes" : "No",
-      },
+      ...(showEmpty.value || item.value.quantity !== 1
+        ? [{ name: "items.quantity", text: item.value?.quantity, slot: "quantity" }]
+        : []),
+      ...(showEmpty.value || item.value.insured
+        ? [{ name: "items.insured", text: item.value?.insured ? "Yes" : "No" }]
+        : []),
+      ...(showEmpty.value || item.value.archived
+        ? [{ name: "items.archived", text: item.value?.archived ? "Yes" : "No" }]
+        : []),
       {
         name: "items.notes",
         type: "markdown",
         text: item.value?.notes,
       },
       ...assetID.value,
-      ...item.value.fields.map(field => {
-        /**
-         * Support Special URL Syntax
-         */
-        const url = maybeUrl(field.textValue);
-        if (url.isUrl) {
-          return {
-            type: "link",
-            name: field.name,
-            text: url.text,
-            href: url.url,
-          } as AnyDetail;
-        }
-
-        return {
-          name: field.name,
-          text: field.textValue,
-        };
-      }),
     ];
 
-    if (!preferences.value.showEmpty) {
+    if (!showEmpty.value) {
       return filterZeroValues(ret);
     }
 
@@ -282,7 +291,7 @@
   });
 
   const showAttachments = computed(() => {
-    if (preferences.value?.showEmpty) {
+    if (showEmpty.value) {
       return true;
     }
 
@@ -325,7 +334,7 @@
   });
 
   const showWarranty = computed(() => {
-    if (preferences.value.showEmpty) {
+    if (showEmpty.value) {
       return true;
     }
     return item.value?.lifetimeWarranty || validDate(item.value?.warrantyExpires);
@@ -359,7 +368,7 @@
       text: item.value?.warrantyDetails || "",
     });
 
-    if (!preferences.value.showEmpty) {
+    if (!showEmpty.value) {
       return filterZeroValues(details);
     }
 
@@ -367,7 +376,7 @@
   });
 
   const showPurchase = computed(() => {
-    if (preferences.value.showEmpty) {
+    if (showEmpty.value) {
       return true;
     }
     return item.value?.purchaseFrom || item.value?.purchasePrice !== 0 || validDate(item.value?.purchaseDate);
@@ -392,7 +401,7 @@
       },
     ];
 
-    if (!preferences.value.showEmpty) {
+    if (!showEmpty.value) {
       return filterZeroValues(v);
     }
 
@@ -400,7 +409,7 @@
   });
 
   const showSold = computed(() => {
-    if (preferences.value.showEmpty) {
+    if (showEmpty.value) {
       return true;
     }
     return item.value?.soldTo || item.value?.soldPrice !== 0 || validDate(item.value?.soldDate);
@@ -425,7 +434,7 @@
       },
     ];
 
-    if (!preferences.value.showEmpty) {
+    if (!showEmpty.value) {
       return filterZeroValues(v);
     }
 
@@ -656,7 +665,21 @@
       <Card class="p-3">
         <header :class="{ 'mb-2': item.description }">
           <div class="flex flex-wrap items-end gap-2">
+            <button
+              v-if="primaryPhoto"
+              type="button"
+              class="mb-auto mr-2 shrink-0 overflow-hidden"
+              :aria-label="$t('items.photos')"
+              @click="openImageDialog(primaryPhoto, item.id)"
+            >
+              <img
+                :src="primaryPhoto.thumbnailSrc"
+                :alt="item.name"
+                class="item-header-photo max-h-44 w-auto max-w-40 rounded object-contain"
+              />
+            </button>
             <div
+              v-else
               class="mb-auto flex size-12 items-center justify-center rounded-full bg-secondary text-secondary-foreground"
             >
               <MdiPackageVariant class="size-7" />
@@ -771,7 +794,7 @@
           <template #title-actions>
             <div class="mt-2 flex flex-wrap items-center justify-between gap-4">
               <Label class="flex cursor-pointer items-center gap-2">
-                <Switch v-model="preferences.showEmpty" />
+                <Switch v-model="showEmpty" />
                 {{ $t("items.show_empty") }}
               </Label>
               <div class="space-x-1">
@@ -800,7 +823,7 @@
 
         <!-- anything in this is not rendered if on another page -->
         <template v-if="!hasNested">
-          <BaseCard v-if="photos && photos.length > 0">
+          <BaseCard v-if="photos && photos.length > 1">
             <template #title> {{ $t("items.photos") }} </template>
             <div class="scroll-bg container mx-auto flex max-h-[500px] flex-wrap gap-2 overflow-y-scroll border-t p-4">
               <button v-for="(img, i) in photos" :key="i" @click="openImageDialog(img, item.id)">
@@ -849,6 +872,18 @@
             </div>
           </BaseCard>
 
+          <div
+            v-if="!showEmpty && (!showPurchase || !showWarranty)"
+            class="flex flex-wrap gap-x-4 gap-y-1 px-1 text-sm text-muted-foreground"
+          >
+            <NuxtLink v-if="!showPurchase" :to="`/item/${itemId}/edit`" class="hover:text-foreground hover:underline">
+              + Add purchase details
+            </NuxtLink>
+            <NuxtLink v-if="!showWarranty" :to="`/item/${itemId}/edit`" class="hover:text-foreground hover:underline">
+              + Add warranty
+            </NuxtLink>
+          </div>
+
           <BaseCard v-if="showPurchase" collapsable>
             <template #title> {{ $t("items.purchase_details") }} </template>
             <DetailsSection :details="purchaseDetails" />
@@ -874,6 +909,10 @@
 </template>
 
 <style lang="css" scoped>
+  .item-header-photo {
+    filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.18)) drop-shadow(0 6px 12px rgb(0 0 0 / 0.1));
+  }
+
   /* Style dialog background */
   dialog::backdrop {
     background: rgba(0, 0, 0, 0.5);
