@@ -17,6 +17,14 @@ AGPL requires.
   lookup opens as soon as a code is read twice; aiming box; AR mode is explained.
 - **Locations page.** Cards with item counts, photo strips and sub-locations (non-empty
   first, compact empty ones), a New location button, and a labelled Cards/Tree toggle.
+- **Item page.** Large primary photo in the header; custom fields (Author, ISBN, ...) first;
+  empty fields, "No" flags, quantity 1 and Manufacturer/Model rows that repeat a custom field
+  are hidden (own Show empty switch, off); "+ Add purchase details / warranty" links; label,
+  QR, duplicate, template and delete actions in the ⋮ menu.
+- **Location page items.** Search (title, author, ISBN, maker, model), type chips, sort, and
+  Grid / List / Table views (Table is the original). Create Item is the only button; edit,
+  labels and delete are in a ⋮ menu. Empty details card hidden.
+- **Import product dialog.** Results as wrapping rows; a single match is preselected.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
