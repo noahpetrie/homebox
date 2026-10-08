@@ -11,6 +11,9 @@
   import MdiPlusBoxMultipleOutline from "~icons/mdi/plus-box-multiple-outline";
   import MdiContentSaveEdit from "~icons/mdi/content-save-edit";
   import MdiDotsVertical from "~icons/mdi/dots-vertical";
+  import MdiFileDownload from "~icons/mdi/file-download";
+  import MdiPrinterPos from "~icons/mdi/printer-pos";
+  import MdiQrcode from "~icons/mdi/qrcode";
   import { Separator } from "@/components/ui/separator";
   import {
     DropdownMenu,
@@ -49,6 +52,7 @@
   const { t } = useI18n();
 
   const { openDialog, closeDialog } = useDialog();
+  const labelMaker = ref<{ downloadLabel: () => void; openPrint: () => void; openQrCode: () => void } | null>(null);
 
   definePageMeta({
     middleware: ["auth"],
@@ -723,11 +727,11 @@
             </div>
             <div class="ml-auto mt-2 flex flex-wrap items-center justify-between gap-2">
               <LabelMaker
-                v-if="typeof item.assetId === 'string' && item.assetId != ''"
-                :id="item.assetId"
-                type="asset"
+                :id="typeof item.assetId === 'string' && item.assetId != '' ? item.assetId : item.id"
+                ref="labelMaker"
+                menu
+                :type="typeof item.assetId === 'string' && item.assetId != '' ? 'asset' : 'item'"
               />
-              <LabelMaker v-else :id="item.id" type="item" />
               <Button class="w-9 md:w-auto" :aria-label="$t('global.create_subitem')" @click="createSubitem">
                 <MdiPlus />
                 <span class="hidden md:inline">{{ $t("global.create_subitem") }}</span>
@@ -740,7 +744,20 @@
                     <MdiDotsVertical class="size-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" class="w-48">
+                <DropdownMenuContent align="end" class="w-52">
+                  <DropdownMenuItem @click="labelMaker?.downloadLabel()">
+                    <MdiFileDownload class="mr-2 size-4" />
+                    {{ $t("components.global.label_maker.download") }}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="labelMaker?.openPrint()">
+                    <MdiPrinterPos class="mr-2 size-4" />
+                    {{ $t("components.global.label_maker.browser_print") }}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="labelMaker?.openQrCode()">
+                    <MdiQrcode class="mr-2 size-4" />
+                    {{ $t("components.global.page_qr_code.qr_tooltip") }}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
                   <DropdownMenuItem @click="handleDuplicateClick">
                     <MdiPlusBoxMultipleOutline class="mr-2 size-4" />
                     {{ $t("global.duplicate") }}

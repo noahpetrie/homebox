@@ -8,6 +8,17 @@
   import MdiPlus from "~icons/mdi/plus";
   import MdiPencil from "~icons/mdi/pencil";
   import MdiDelete from "~icons/mdi/delete";
+  import MdiDotsVertical from "~icons/mdi/dots-vertical";
+  import MdiFileDownload from "~icons/mdi/file-download";
+  import MdiPrinterPos from "~icons/mdi/printer-pos";
+  import MdiQrcode from "~icons/mdi/qrcode";
+  import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
+  } from "@/components/ui/dropdown-menu";
   import { useDialog } from "@/components/ui/dialog-provider";
   import { Card } from "@/components/ui/card";
   import {
@@ -41,6 +52,7 @@
   const { t } = useI18n();
 
   const { openDialog } = useDialog();
+  const labelMaker = ref<{ downloadLabel: () => void; openPrint: () => void; openQrCode: () => void } | null>(null);
 
   const route = useRoute();
   const api = useUserApi();
@@ -278,25 +290,43 @@
               </div>
             </div>
             <div class="ml-auto mt-2 flex flex-wrap items-center justify-between gap-2">
-              <LabelMaker :id="location.id" type="location" />
-              <Button class="w-9 md:w-auto" @click="openCreateItem">
+              <LabelMaker :id="location.id" ref="labelMaker" type="location" menu />
+              <Button @click="openCreateItem">
                 <MdiPlus name="mdi-plus" />
-                <span class="hidden md:inline">
-                  {{ $t("components.location.create_item") }}
-                </span>
+                {{ $t("components.location.create_item") }}
               </Button>
-              <Button class="w-9 md:w-auto" @click="goToEdit">
-                <MdiPencil name="mdi-pencil" />
-                <span class="hidden md:inline">
-                  {{ $t("global.edit") }}
-                </span>
-              </Button>
-              <Button variant="destructive" class="w-9 md:w-auto" @click="confirmDelete()">
-                <MdiDelete name="mdi-delete" />
-                <span class="hidden md:inline">
-                  {{ $t("global.delete") }}
-                </span>
-              </Button>
+              <!-- Home fork: everything else lives in the ⋮ menu -->
+              <DropdownMenu>
+                <DropdownMenuTrigger as-child>
+                  <Button variant="outline" size="icon" :aria-label="$t('global.more_actions')">
+                    <MdiDotsVertical class="size-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" class="w-52">
+                  <DropdownMenuItem @click="goToEdit">
+                    <MdiPencil class="mr-2 size-4" />
+                    {{ $t("global.edit") }}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem @click="labelMaker?.downloadLabel()">
+                    <MdiFileDownload class="mr-2 size-4" />
+                    {{ $t("components.global.label_maker.download") }}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="labelMaker?.openPrint()">
+                    <MdiPrinterPos class="mr-2 size-4" />
+                    {{ $t("components.global.label_maker.browser_print") }}
+                  </DropdownMenuItem>
+                  <DropdownMenuItem @click="labelMaker?.openQrCode()">
+                    <MdiQrcode class="mr-2 size-4" />
+                    {{ $t("components.global.page_qr_code.qr_tooltip") }}
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem class="text-destructive focus:text-destructive" @click="confirmDelete()">
+                    <MdiDelete class="mr-2 size-4" />
+                    {{ $t("global.delete") }}
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </header>
