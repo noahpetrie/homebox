@@ -229,7 +229,10 @@
   import { Button, ButtonGroup } from "~/components/ui/button";
   import BaseModal from "@/components/App/CreateModal.vue";
   import type {
+    BarcodeProduct,
     EntityCreate,
+    EntityFieldData,
+    EntityUpdate,
     EntityTemplateOut,
     EntityTemplateSummary,
     EntityOut,
@@ -317,6 +320,7 @@
   // Entity type selection
   const entityTypes = computed(() => entityTypeStore.allTypes);
   const selectedEntityType = ref<EntityTypeSummary | null>(null);
+  const scannedProduct = ref<BarcodeProduct | null>(null);
 
   async function onEntityTypeChanged(typeId: string) {
     const et = entityTypes.value.find(t => t.id === typeId);
@@ -511,6 +515,7 @@
   onMounted(() => {
     const cleanup = registerOpenDialogCallback(DialogID.CreateEntity, async params => {
       subItemCreate.value = false;
+      scannedProduct.value = null;
       let parentItemLocationId = null;
       parent.value = {};
       form.parentId = null;
@@ -539,6 +544,7 @@
         }
 
         if (params.product) {
+          scannedProduct.value = params.product;
           form.name = params.product.item.name;
           form.description = params.product.item.description;
 
@@ -665,6 +671,11 @@
       })
     );
 
+    if (scannedProduct.value && !selectedEntityType.value?.isLocation) {
+      await saveScannedIdentifiers(data.id, scannedProduct.value);
+    }
+    scannedProduct.value = null;
+
     if (form.photos.length > 0) {
       toast.info(t("components.entity.create_modal.toast.uploading_photos", { count: form.photos.length }));
       let uploadError = false;
@@ -710,6 +721,47 @@
       } else {
         navigateTo(`/item/${data.id}`);
       }
+    }
+  }
+
+  // Home fork: keep the scanned barcode (as "ISBN" for books) plus the publisher/brand and
+  // model number from the lookup. EntityCreate has no such fields, so set them right after.
+  async function saveScannedIdentifiers(id: string, product: BarcodeProduct) {
+    const code = (product.barcode || "").trim();
+    if (!code) return;
+    const fieldName = /^97[89]\d{10}$/.test(code) ? "ISBN" : "Barcode";
+
+    const { data: item, error } = await api.items.get(id);
+    if (error || !item) {
+      console.error("Failed to load new item to save barcode:", error);
+      return;
+    }
+
+    const fields = (item.fields || []).filter(f => f.name !== fieldName);
+    fields.push({
+      id: null,
+      name: fieldName,
+      type: "text",
+      textValue: code,
+      numberValue: 0,
+      booleanValue: false,
+    } as unknown as EntityFieldData);
+
+    const { error: updateError } = await api.items.update(id, {
+      ...item,
+      parentId: item.parent?.id || null,
+      tagIds: (item.tags || []).map(t => t.id),
+      entityTypeId: item.entityType!.id,
+      purchasePrice: item.purchasePrice || 0,
+      soldPrice: item.soldPrice || 0,
+      manufacturer: item.manufacturer || product.manufacturer || "",
+      modelNumber: item.modelNumber || product.modelNumber || (fieldName === "ISBN" ? code : ""),
+      fields,
+    } as unknown as EntityUpdate);
+
+    if (updateError) {
+      toast.error(`Couldn't save ${fieldName} ${code}`);
+      console.error(updateError);
     }
   }
 

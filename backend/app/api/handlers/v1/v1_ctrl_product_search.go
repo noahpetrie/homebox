@@ -79,6 +79,7 @@ type UPCITEMDBResponse struct {
 		Description          string   `json:"description"`
 		Upc                  string   `json:"upc"`
 		Brand                string   `json:"brand"`
+		Publisher            string   `json:"publisher"`
 		Model                string   `json:"model"`
 		Color                string   `json:"color"`
 		Size                 string   `json:"size"`
@@ -206,7 +207,7 @@ func lookupUPCItemDB(iEan string) ([]repo.BarcodeProduct, error) {
 
 		p.Item.Description = it.Description
 		p.Item.Name = it.Title
-		p.Manufacturer = it.Brand
+		p.Manufacturer = firstNonEmpty(it.Brand, it.Publisher) // books have a publisher, not a brand
 		p.ModelNumber = it.Model
 		if len(it.Images) != 0 {
 			p.ImageURL = it.Images[0]
