@@ -39,65 +39,43 @@
 
       <Separator />
 
-      <BaseCard>
-        <Table class="w-full whitespace-nowrap">
-          <TableHeader>
-            <TableRow>
-              <TableHead
-                v-for="h in headers"
-                :key="h.value"
-                class="text-no-transform bg-secondary text-sm text-secondary-foreground hover:bg-secondary/90"
-              >
-                <div
-                  class="flex items-center gap-1"
-                  :class="{
-                    'justify-center': h.align === 'center',
-                  }"
-                >
-                  <template v-if="typeof h === 'string'">{{ h }}</template>
-                  <template v-else>{{ $t(h.text) }}</template>
-                </div>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-
-          <TableBody>
-            <TableRow
-              v-for="(p, index) in products"
-              :key="index"
-              class="cursor-pointer"
-              :class="{ selected: selectedRow === index }"
-              @click="selectProduct(index)"
-            >
-              <TableCell
-                v-for="h in headers"
-                :key="h.value"
-                :class="{
-                  'text-center': h.align === 'center',
-                }"
-              >
-                <template v-if="h.type === 'name'">
-                  <div class="flex items-center space-x-4">
-                    <img :src="p.imageBase64" class="w-16 rounded object-fill shadow-sm" alt="Product's photo" />
-                    <span class="text-sm font-medium">
-                      {{ p.item.name }}
-                    </span>
-                  </div>
-                </template>
-                <template v-else-if="h.type === 'url'">
-                  <NuxtLink class="underline" :to="'https://' + extractValue(p, h.value)" target="_blank">{{
-                    extractValue(p, h.value)
-                  }}</NuxtLink>
-                </template>
-
-                <slot v-else :name="cell(h)">
-                  {{ extractValue(p, h.value) }}
-                </slot>
-              </TableCell>
-            </TableRow>
-          </TableBody>
-        </Table>
-      </BaseCard>
+      <!-- Home fork: one selectable row per result; long titles wrap instead of running into
+           the next column. -->
+      <div v-if="products && products.length" class="flex max-h-[50vh] flex-col gap-2 overflow-y-auto">
+        <button
+          v-for="(p, index) in products"
+          :key="index"
+          type="button"
+          class="flex items-center gap-4 rounded-lg border-2 bg-card p-3 text-left transition-colors hover:bg-accent/50"
+          :class="selectedRow === index ? 'border-primary bg-accent/40' : 'border-transparent'"
+          @click="selectProduct(index)"
+        >
+          <img
+            v-if="p.imageBase64"
+            :src="p.imageBase64"
+            class="h-24 w-16 shrink-0 rounded object-contain"
+            alt="Product's photo"
+          />
+          <div v-else class="flex h-24 w-16 shrink-0 items-center justify-center rounded bg-muted">
+            <MdiBarcode class="size-6 opacity-40" />
+          </div>
+          <div class="min-w-0 grow">
+            <div class="font-medium leading-snug">{{ p.item.name }}</div>
+            <div class="mt-1 text-sm text-muted-foreground">
+              {{ [p.manufacturer, p.modelNumber].filter(Boolean).join(" · ") }}
+            </div>
+            <div class="mt-1 text-xs text-muted-foreground">
+              {{ p.search_engine_name }}
+            </div>
+          </div>
+          <div
+            class="flex size-5 shrink-0 items-center justify-center rounded-full border-2"
+            :class="selectedRow === index ? 'border-primary bg-primary' : 'border-muted-foreground/40'"
+          >
+            <div v-if="selectedRow === index" class="size-2 rounded-full bg-primary-foreground" />
+          </div>
+        </button>
+      </div>
 
       <DialogFooter>
         <Button type="button" :disabled="selectedRow === -1" @click="createItem">
@@ -118,9 +96,7 @@
   import MdiBarcode from "~icons/mdi/barcode";
   import MdiLoading from "~icons/mdi/loading";
   import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-  import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
   import { Separator } from "@/components/ui/separator";
-  import BaseCard from "@/components/Base/Card.vue";
   import FormTextField from "@/components/Form/TextField.vue";
 
   const { openDialog, registerOpenDialogCallback } = useDialog();
@@ -131,28 +107,6 @@
   const products = ref<BarcodeProduct[] | null>(null);
   const selectedRow = ref(-1);
   const errorMessage = ref<string | null>(null);
-
-  type BarcodeTableHeader = {
-    text: string;
-    value: string;
-    align?: "left" | "center" | "right";
-    type?: "name" | "url";
-  };
-
-  const defaultHeaders = [
-    {
-      text: "items.name",
-      value: "name",
-      align: "center",
-      type: "name",
-    },
-    { text: "items.manufacturer", value: "manufacturer", align: "center" },
-    { text: "items.model_number", value: "modelNumber", align: "center" },
-    { text: "components.item.product_import.db_source", value: "search_engine_name", align: "center", type: "url" },
-  ] satisfies BarcodeTableHeader[];
-
-  // Need for later filtering
-  const headers = defaultHeaders;
 
   onMounted(() => {
     const cleanup = registerOpenDialogCallback(DialogID.ProductImport, params => {
@@ -220,6 +174,8 @@
         }
 
         products.value = result.data;
+        // Home fork: a single match is selected straight away
+        if (result.data?.length === 1) selectedRow.value = 0;
       }
     } catch (error) {
       errorMessage.value = t("components.item.product_import.error_exception") + error;
@@ -227,20 +183,6 @@
     } finally {
       searching.value = false;
     }
-  }
-
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  function extractValue(data: Record<string, any>, value: string) {
-    const parts = value.split(".");
-    let current = data;
-    for (const part of parts) {
-      current = current[part];
-    }
-    return current;
-  }
-
-  function cell(h: BarcodeTableHeader) {
-    return `cell-${h.value.replace(".", "_")}`;
   }
 
   function selectProduct(index: number) {
