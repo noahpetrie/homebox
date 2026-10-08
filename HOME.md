@@ -12,6 +12,8 @@ AGPL requires.
   use the publisher when there is no brand.
 - **Item cards.** Photos sit on a plain muted backdrop with a soft shadow instead of a
   blurred copy of themselves; the quantity badge is hidden when it is 1.
+- **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
+  cut off.
 
 ## Updating to a new upstream release
 
