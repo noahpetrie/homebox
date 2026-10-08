@@ -7,6 +7,9 @@
   import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
   import { useDialog } from "@/components/ui/dialog-provider";
 
+  // Home fork: dialogOnly renders just the dialog, for pages that open it from a menu.
+  defineProps<{ dialogOnly?: boolean }>();
+
   const { openDialog } = useDialog();
 
   function getQRCodeUrl(): string {
@@ -28,7 +31,7 @@
     </DialogContent>
   </Dialog>
 
-  <Tooltip>
+  <Tooltip v-if="!dialogOnly">
     <TooltipTrigger as-child>
       <Button size="icon" @click="openDialog(DialogID.PageQRCode)">
         <MdiQrcode name="mdi-qrcode" />

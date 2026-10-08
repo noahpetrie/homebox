@@ -26,6 +26,9 @@
   const props = defineProps<{
     type: string;
     id: string;
+    // Home fork: render only the dialogs; the page puts the actions in its ⋮ menu
+    // and calls downloadLabel / openPrint / openQrCode through a template ref.
+    menu?: boolean;
   }>();
 
   const pubApi = usePublicApi();
@@ -77,6 +80,16 @@
     document.body.removeChild(link);
   }
 
+  function openPrint() {
+    openDialog(DialogID.PrintLabel);
+  }
+
+  function openQrCode() {
+    openDialog(DialogID.PageQRCode);
+  }
+
+  defineExpose({ downloadLabel, openPrint, openQrCode });
+
   function getLabelUrl(print: boolean): string {
     const { selectedId } = useCollections();
     const params: Record<string, QueryValue> = { print };
@@ -124,7 +137,8 @@
       </DialogContent>
     </Dialog>
 
-    <TooltipProvider :delay-duration="0">
+    <PageQRCode v-if="menu" dialog-only />
+    <TooltipProvider v-else :delay-duration="0">
       <ButtonGroup>
         <Button variant="outline" disabled class="disabled:opacity-100">
           {{ $t("components.global.label_maker.titles") }}
