@@ -15,6 +15,8 @@ AGPL requires.
 - **Faster scanner.** Product barcodes are decoded with zxing-cpp (WebAssembly) from a
   1080p stream on the best back camera (iPhone multi-lens cameras, not telephoto), and the
   lookup opens as soon as a code is read twice; aiming box; AR mode is explained.
+- **Locations page.** Cards with item counts, photo strips and sub-locations (non-empty
+  first, compact empty ones), a New location button, and a labelled Cards/Tree toggle.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
@@ -27,5 +29,7 @@ docker build --build-arg VERSION=<new-tag>+home.1 -t home/homebox:<ver>-home.1 .
 ```
 
 Use `+home.N` in VERSION (semver build metadata) so the "new version available" popup
-only fires for real upstream releases. Then back up `data/homebox/homebox.db`, change the
+only fires for real upstream releases. To preview a build first: tag it `home/homebox:<ver>-home.N-test`, copy the live data to
+`data/homebox-test`, and `docker compose --profile test up -d homebox-test`
+(https://homebox-test.madiba.ca). Then back up `data/homebox/homebox.db`, change the
 image tag in `~/Developer/home-site/docker/compose.yml`, and `docker compose up -d homebox`.
