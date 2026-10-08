@@ -9,18 +9,12 @@
       />
     </div>
     <NuxtLink :to="`/item/${item.id}`">
-      <div class="relative h-[200px]">
-        <img
-          v-if="imageUrl && objectContain"
-          class="absolute h-[200px] w-full object-cover blur-md"
-          loading="lazy"
-          :src="imageUrl"
-          alt=""
-        />
+      <!-- Home fork: show the whole photo on a quiet backdrop instead of a blurred copy of itself -->
+      <div class="relative h-[200px]" :class="objectContain ? 'bg-muted' : ''">
         <img
           v-if="imageUrl"
-          class="absolute h-[200px] w-full shadow-md"
-          :class="objectContain ? 'object-contain' : 'object-cover'"
+          class="absolute w-full"
+          :class="objectContain ? 'inset-0 h-full object-contain px-4 pb-9 pt-4 item-card-photo' : 'h-[200px] object-cover shadow-md'"
           loading="lazy"
           :src="imageUrl"
           :alt="item.name"
@@ -55,7 +49,7 @@
               </TooltipContent>
             </Tooltip>
             <div class="grow" />
-            <Tooltip>
+            <Tooltip v-if="item.quantity !== 1">
               <TooltipTrigger>
                 <Badge>
                   {{ item.quantity }}
@@ -131,4 +125,8 @@
   );
 </script>
 
-<style lang="css"></style>
+<style lang="css">
+  .item-card-photo {
+    filter: drop-shadow(0 2px 3px rgb(0 0 0 / 0.18)) drop-shadow(0 8px 14px rgb(0 0 0 / 0.12));
+  }
+</style>
