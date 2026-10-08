@@ -25,6 +25,14 @@ AGPL requires.
   Grid / List / Table views (Table is the original). Create Item is the only button; edit,
   labels and delete are in a ⋮ menu. Empty details card hidden.
 - **Import product dialog.** Results as wrapping rows; a single match is preselected.
+- **Faster adding.** The Create dialog remembers the last type and location (and applies the
+  type's default template); a scan warns when you already have that ISBN/barcode; "Create and
+  add another" after a scan goes straight back to the camera; photos sit right under the name
+  with a "Take photo" button. Defaults to the Item type. Product images that failed to
+  download are skipped instead of throwing.
+- **Item types.** Electronics, Appliance, Furniture & Decor and Tool, each with a default
+  template of fields. These live in the database, not the code; `home/create-types.py <url>
+  <token>` creates or updates them.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
