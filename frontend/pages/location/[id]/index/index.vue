@@ -28,7 +28,7 @@
   import Markdown from "~/components/global/Markdown.vue";
   import DetailsSection from "~/components/global/DetailsSection/DetailsSection.vue";
   import BaseSectionHeader from "@/components/Base/SectionHeader.vue";
-  import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
+  import LocationItemsBrowser from "~/components/Location/ItemsBrowser.vue";
   import ItemAttachmentsList from "~/components/Item/AttachmentsList.vue";
   import ItemImageDialog from "~/components/Item/ImageDialog.vue";
   import LocationCard from "~/components/Location/Card.vue";
@@ -343,7 +343,7 @@
 
       <!-- Items in this location -->
       <section v-if="location && items">
-        <ItemViewSelectable :items="items" @refresh="refreshItemList" />
+        <LocationItemsBrowser :items="items" @refresh="refreshItemList" />
       </section>
 
       <!-- Child locations -->
