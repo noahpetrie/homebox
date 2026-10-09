@@ -140,26 +140,14 @@
     <!-- contents, one section per area -->
     <div class="lg:col-span-2">
       <div class="flex max-h-[72vh] flex-col overflow-y-auto rounded-lg border bg-card shadow-sm">
-        <div
-          v-for="a in mapped"
-          :key="a.id"
-          :ref="el => setSectionEl(a.id, el)"
-          class="border-b p-3 transition-colors last:border-b-0"
-          :class="highlight(a.id) ? 'bg-primary/10' : ''"
-          @mouseenter="activeId = a.id"
-          @mouseleave="activeId = null"
-        >
+        <!-- things sitting directly in this location -->
+        <div v-if="loose && loose.length" class="border-b-2 bg-muted/40 p-3">
           <div class="flex items-center gap-2">
-            <button type="button" class="grow text-left font-semibold hover:underline" @click="selectArea(a.id)">
-              {{ a.name }}
-            </button>
-            <Badge :variant="a.total ? 'default' : 'secondary'">{{ a.total }}</Badge>
-            <Button size="sm" variant="ghost" class="h-7 px-2" as-child>
-              <NuxtLink :to="`/location/${a.id}`" :aria-label="`Open ${a.name}`"><MdiArrowRight /></NuxtLink>
-            </Button>
+            <span class="grow font-semibold">Loose in {{ locationName || "here" }}</span>
+            <Badge>{{ loose.length }}</Badge>
           </div>
-          <ul v-if="a.items.length" class="mt-1.5 flex flex-col">
-            <li v-for="it in a.items" :key="it.id">
+          <ul class="mt-1.5 flex flex-col">
+            <li v-for="it in loose" :key="it.id">
               <NuxtLink :to="`/item/${it.id}`" class="flex items-center gap-2.5 rounded-md p-1 hover:bg-accent/60">
                 <img v-if="thumb(it)" :src="thumb(it)" alt="" class="size-8 shrink-0 rounded bg-muted object-contain" />
                 <span v-else class="flex size-8 shrink-0 items-center justify-center rounded bg-muted">
@@ -169,28 +157,45 @@
               </NuxtLink>
             </li>
           </ul>
-          <div v-else class="mt-1 flex items-center gap-2">
-            <span class="text-sm text-muted-foreground">Empty</span>
-            <Button
-              v-if="packTarget?.id !== a.id"
-              size="sm"
-              variant="link"
-              class="h-auto p-0 text-xs"
-              @click="startPacking({ id: a.id, name: a.name })"
-            >
-              <MdiPackageVariantClosed class="mr-1 size-3.5" /> Pack items here
-            </Button>
-          </div>
         </div>
 
-        <!-- things sitting directly in this location -->
-        <div v-if="loose && loose.length" class="border-t-2 p-3">
+        <div
+          v-for="a in mapped"
+          :key="a.id"
+          :ref="el => setSectionEl(a.id, el)"
+          class="border-b transition-colors last:border-b-0"
+          :class="[highlight(a.id) ? 'bg-primary/10' : '', a.items.length ? 'p-3' : 'px-3 py-2']"
+          @mouseenter="activeId = a.id"
+          @mouseleave="activeId = null"
+        >
           <div class="flex items-center gap-2">
-            <span class="grow font-semibold">Loose in {{ locationName || "here" }}</span>
-            <Badge>{{ loose.length }}</Badge>
+            <button
+              type="button"
+              class="text-left font-semibold hover:underline"
+              :class="a.items.length ? 'grow' : 'text-muted-foreground'"
+              @click="selectArea(a.id)"
+            >
+              {{ a.name }}
+            </button>
+            <template v-if="!a.items.length">
+              <span class="grow text-sm text-muted-foreground">· Empty</span>
+              <Button
+                v-if="packTarget?.id !== a.id"
+                size="sm"
+                variant="link"
+                class="h-auto p-0 text-xs"
+                @click="startPacking({ id: a.id, name: a.name })"
+              >
+                <MdiPackageVariantClosed class="mr-1 size-3.5" /> Pack here
+              </Button>
+            </template>
+            <Badge :variant="a.total ? 'default' : 'secondary'">{{ a.total }}</Badge>
+            <Button size="sm" variant="ghost" class="h-7 px-2" as-child>
+              <NuxtLink :to="`/location/${a.id}`" :aria-label="`Open ${a.name}`"><MdiArrowRight /></NuxtLink>
+            </Button>
           </div>
-          <ul class="mt-1.5 flex flex-col">
-            <li v-for="it in loose" :key="it.id">
+          <ul v-if="a.items.length" class="mt-1.5 flex flex-col">
+            <li v-for="it in a.items" :key="it.id">
               <NuxtLink :to="`/item/${it.id}`" class="flex items-center gap-2.5 rounded-md p-1 hover:bg-accent/60">
                 <img v-if="thumb(it)" :src="thumb(it)" alt="" class="size-8 shrink-0 rounded bg-muted object-contain" />
                 <span v-else class="flex size-8 shrink-0 items-center justify-center rounded bg-muted">
