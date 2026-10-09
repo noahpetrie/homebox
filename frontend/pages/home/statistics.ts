@@ -23,11 +23,8 @@ export function statCardData(api: UserClient) {
 
   return computed(() => {
     return [
-      {
-        label: t("home.total_value"),
-        value: statistics.value?.totalItemPrice || 0,
-        type: "currency",
-      },
+      // Total value is left off the dashboard (it's in the insurance report) so the
+      // home page is fine to show people.
       {
         label: t("home.total_items"),
         value: statistics.value?.totalItems || 0,
