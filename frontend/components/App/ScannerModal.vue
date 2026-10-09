@@ -92,7 +92,7 @@
   import { computed, ref, watch } from "vue";
   import { BarcodeDetector, prepareZXingModule } from "barcode-detector";
   import { lastScanSource } from "~/composables/use-scan-source";
-  import { packCode, packedLog, packTarget } from "~/composables/use-packing";
+  import { packCode, packedLog, packLabel, packTarget } from "~/composables/use-packing";
   import { useI18n } from "vue-i18n";
   import { DialogID } from "@/components/ui/dialog-provider/utils";
   import { Dialog, DialogHeader, DialogScrollContent, DialogTitle } from "@/components/ui/dialog";
@@ -229,6 +229,14 @@
       try {
         const url = new URL(rawValue);
         if (!url.pathname.startsWith("/")) throw new Error(t("scanner.invalid_url"));
+        // packing: an item's label packs it and the camera stays on for the next one
+        if (packTarget.value && /\/item\//.test(url.pathname)) {
+          if (rawValue === lastPacked && Date.now() - lastPackedAt < 4000) return;
+          lastPacked = rawValue;
+          lastPackedAt = Date.now();
+          packLabel(api, url.pathname);
+          return;
+        }
         loading.value = true;
         closeDialog(DialogID.Scanner);
         navigateTo(url.pathname.replace(/[^a-zA-Z0-9-_/]/g, ""));

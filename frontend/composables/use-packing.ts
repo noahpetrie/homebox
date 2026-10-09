@@ -101,16 +101,41 @@ export async function packCode(api: UserClient, code: string): Promise<"done" | 
     await navigateTo({ path: "/items", query: { q: code } });
     return "done";
   }
-  const item = outside[0]!;
-  const from = item.parent && item.parent.id !== target.id ? { id: item.parent.id, name: item.parent.name } : null;
+  await packItem(api, outside[0]!);
+  return "done";
+}
+
+/** Moves one item into the pack target (from a search, a QR label or a barcode). */
+export async function packItem(api: UserClient, item: EntitySummary) {
+  const target = packTarget.value;
+  if (!target || item.id === target.id) return;
+  if (item.parent?.id === target.id) {
+    toast.info(`${item.name} is already in ${target.name}`);
+    return;
+  }
+  const from = item.parent ? { id: item.parent.id, name: item.parent.name } : null;
   const { error } = await moveItem(api, item.id, target, from);
   if (error) {
     toast.error(`Couldn't move ${item.name}`);
-    return "done";
+    return;
   }
-  packedLog.value = [{ id: item.id, name: item.name, moved: true }, ...packedLog.value];
-  packVersion.value++;
+  notePacked({ id: item.id, name: item.name });
   toast.success(`${item.name} → ${target.name}`);
   navigator.vibrate?.(40);
-  return "done";
+}
+
+/** Packs the item behind a Homebox label QR code (…/item/<id>). Returns false for other links. */
+export async function packLabel(api: UserClient, path: string): Promise<boolean> {
+  const id = path.match(/\/item\/([0-9a-f-]{36})/i)?.[1];
+  if (!packTarget.value || !id) return false;
+  const { data } = await api.items.get(id);
+  if (!data) return false;
+  await packItem(api, data as unknown as EntitySummary);
+  return true;
+}
+
+/** Counts an item that was packed, including ones created straight into the box. */
+export function notePacked(entry: { id: string; name: string }) {
+  packedLog.value = [{ ...entry, moved: true }, ...packedLog.value];
+  packVersion.value++;
 }
