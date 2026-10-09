@@ -253,6 +253,7 @@
   import MdiAccount from "~icons/mdi/account";
   import MdiCog from "~icons/mdi/cog";
   import MdiWrench from "~icons/mdi/wrench";
+  import MdiShieldHomeOutline from "~icons/mdi/shield-home-outline";
   import MdiPlus from "~icons/mdi/plus";
   import MdiLogout from "~icons/mdi/logout";
   import MdiFileDocumentMultiple from "~icons/mdi/file-document-multiple";
@@ -448,6 +449,14 @@
       active: computed(() => route.path === "/maintenance"),
       name: computed(() => t("menu.maintenance")),
       to: "/maintenance",
+    },
+    // Home fork
+    {
+      icon: MdiShieldHomeOutline,
+      id: 55,
+      active: computed(() => route.path === "/reports/insurance"),
+      name: computed(() => "Insurance report"),
+      to: "/reports/insurance",
     },
     {
       icon: MdiAccount,
