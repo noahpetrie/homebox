@@ -2,7 +2,6 @@
 // that, from the handheld scanner or the phone camera, moves the matching item into it.
 // Barcodes Homebox doesn't know open the usual product lookup, and the new item is created
 // in the box. The target survives page reloads in this tab (sessionStorage).
-import { ref } from "vue";
 import { useSessionStorage } from "@vueuse/core";
 import { toast } from "@/components/ui/sonner";
 import type { EntitySummary } from "~~/lib/api/types/data-contracts";
@@ -14,7 +13,7 @@ export type PackedEntry = { id: string; name: string; moved: boolean };
 export const packTarget = useSessionStorage<PackTarget | null>("homebox:pack.target", null, {
   serializer: { read: v => (v ? JSON.parse(v) : null), write: v => JSON.stringify(v) },
 });
-export const packedLog = ref<PackedEntry[]>([]);
+export const packedLog = useSessionStorage<PackedEntry[]>("homebox:pack.log", []);
 
 export function startPacking(target: PackTarget) {
   packTarget.value = target;
