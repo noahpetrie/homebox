@@ -13,10 +13,16 @@
 
   const MAX_GAP_MS = 80; // scanners send a key every few ms; people are far slower
   const MIN_LENGTH = 6;
+  // Scanners end a code with a configurable key: Enter is common, but some ship set to Tab or
+  // Down Arrow (the PecuMecu does). Codes with no ending key are picked up once the burst stops.
+  const END_KEYS = new Set(["Enter", "Tab", "ArrowDown"]);
+  const IDLE_MS = 150;
+  const MIN_LENGTH_NO_END_KEY = 8;
 
   let buffer = "";
   let lastKeyAt = 0;
   let busy = false;
+  let idleTimer: ReturnType<typeof setTimeout> | undefined;
 
   function isEditable(el: Element | null): boolean {
     if (!el) return false;
@@ -24,23 +30,40 @@
     return tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || (el as HTMLElement).isContentEditable;
   }
 
+  function canHandle(): boolean {
+    if (isEditable(document.activeElement)) return false;
+    // Leave other dialogs alone; the camera scanner is replaced by the handheld one.
+    return !activeDialog.value || activeDialog.value === DialogID.Scanner;
+  }
+
   function onKeydown(e: KeyboardEvent) {
-    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    clearTimeout(idleTimer);
+    if (e.ctrlKey || e.metaKey || e.altKey || e.repeat) {
+      buffer = "";
+      return;
+    }
     const now = performance.now();
     if (now - lastKeyAt > MAX_GAP_MS) buffer = "";
     lastKeyAt = now;
 
-    if (e.key === "Enter") {
+    if (END_KEYS.has(e.key)) {
       const code = buffer.trim();
       buffer = "";
-      if (code.length < MIN_LENGTH || isEditable(document.activeElement)) return;
-      // Leave other dialogs alone; the camera scanner is replaced by the handheld one.
-      if (activeDialog.value && activeDialog.value !== DialogID.Scanner) return;
+      if (code.length < MIN_LENGTH || !canHandle()) return;
       e.preventDefault();
       handleScan(code);
       return;
     }
-    if (e.key.length === 1) buffer += e.key;
+    if (e.key.length !== 1) {
+      buffer = "";
+      return;
+    }
+    buffer += e.key;
+    idleTimer = setTimeout(() => {
+      const code = buffer.trim();
+      buffer = "";
+      if (code.length >= MIN_LENGTH_NO_END_KEY && canHandle()) handleScan(code);
+    }, IDLE_MS);
   }
 
   async function findExisting(code: string): Promise<EntitySummary[]> {
