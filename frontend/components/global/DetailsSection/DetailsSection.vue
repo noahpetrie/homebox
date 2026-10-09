@@ -45,13 +45,20 @@
             <template v-else>
               <!-- Fixed version with improved overflow handling -->
               <span class="flex w-full items-center break-words">
+                <!-- Home fork: [text](/path) links show their text and stay in the app -->
+                <NuxtLink
+                  v-if="maybeUrl(detail.text.toString()).url.startsWith('/')"
+                  :to="maybeUrl(detail.text.toString()).url"
+                  class="overflow-hidden break-all text-primary underline hover:text-primary/80"
+                  >{{ maybeUrl(detail.text.toString()).text || detail.text }}</NuxtLink
+                >
                 <a
-                  v-if="maybeUrl(detail.text.toString()).isUrl"
+                  v-else-if="maybeUrl(detail.text.toString()).isUrl"
                   :href="maybeUrl(detail.text.toString()).url"
                   target="_blank"
                   rel="noopener noreferrer"
                   class="overflow-hidden break-all text-primary underline hover:text-primary/80"
-                  >{{ detail.text }}</a
+                  >{{ maybeUrl(detail.text.toString()).text || detail.text }}</a
                 >
                 <span v-else class="overflow-hidden break-all">{{ detail.text }}</span>
                 <span
