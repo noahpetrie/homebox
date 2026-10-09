@@ -1,21 +1,32 @@
 <template>
-  <div v-if="photos.length > 0" class="mt-4 border-t px-4 pb-4">
-    <div v-for="(photo, index) in photos" :key="index">
-      <div class="mt-8 w-full">
+  <!-- Home fork: small square thumbnails with their actions underneath, instead of each photo
+       at full dialog width with the rest of the form pushed far below it. -->
+  <div v-if="photos.length > 0" class="flex flex-wrap gap-3 px-1">
+    <div v-for="(photo, index) in photos" :key="index" class="w-24">
+      <div
+        class="relative flex size-24 items-center justify-center overflow-hidden rounded-md border bg-muted"
+        :class="photo.primary ? 'ring-2 ring-primary' : ''"
+      >
         <img
           :src="photo.fileBase64"
-          class="w-full rounded object-fill shadow-sm"
+          class="max-h-full max-w-full object-contain"
           :alt="$t('components.entity.create_modal.uploaded')"
         />
       </div>
 
-      <div class="mt-2 flex items-center gap-2">
-        <TooltipProvider class="flex gap-2" :delay-duration="0">
+      <div class="mt-1 flex justify-center gap-0.5">
+        <TooltipProvider :delay-duration="0">
           <Tooltip>
-            <TooltipTrigger>
-              <Button size="icon" type="button" variant="destructive" @click.prevent="emit('delete', index)">
-                <MdiDelete />
-                <div class="sr-only">{{ $t("components.entity.create_modal.delete_photo") }}</div>
+            <TooltipTrigger as-child>
+              <Button
+                size="icon"
+                type="button"
+                variant="ghost"
+                class="size-7 text-destructive hover:text-destructive"
+                @click.prevent="emit('delete', index)"
+              >
+                <MdiDelete class="size-4" />
+                <span class="sr-only">{{ $t("components.entity.create_modal.delete_photo") }}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -24,10 +35,10 @@
           </Tooltip>
 
           <Tooltip>
-            <TooltipTrigger>
-              <Button size="icon" type="button" variant="default" @click.prevent="emit('rotate', index)">
-                <MdiRotateClockwise />
-                <div class="sr-only">{{ $t("components.entity.create_modal.rotate_photo") }}</div>
+            <TooltipTrigger as-child>
+              <Button size="icon" type="button" variant="ghost" class="size-7" @click.prevent="emit('rotate', index)">
+                <MdiRotateClockwise class="size-4" />
+                <span class="sr-only">{{ $t("components.entity.create_modal.rotate_photo") }}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -36,18 +47,20 @@
           </Tooltip>
 
           <Tooltip>
-            <TooltipTrigger>
+            <TooltipTrigger as-child>
               <Button
                 size="icon"
                 type="button"
-                :variant="photo.primary ? 'default' : 'outline'"
+                variant="ghost"
+                class="size-7"
+                :class="photo.primary ? 'text-primary' : ''"
                 @click.prevent="emit('setPrimary', index)"
               >
-                <MdiStar v-if="photo.primary" />
-                <MdiStarOutline v-else />
-                <div class="sr-only">
+                <MdiStar v-if="photo.primary" class="size-4" />
+                <MdiStarOutline v-else class="size-4" />
+                <span class="sr-only">
                   {{ $t("components.entity.create_modal.set_as_primary_photo", { isPrimary: photo.primary }) }}
-                </div>
+                </span>
               </Button>
             </TooltipTrigger>
             <TooltipContent>
@@ -55,8 +68,6 @@
             </TooltipContent>
           </Tooltip>
         </TooltipProvider>
-
-        <p class="mt-1 text-sm" style="overflow-wrap: anywhere">{{ photo.photoName }}</p>
       </div>
     </div>
   </div>
