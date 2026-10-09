@@ -140,6 +140,9 @@
           retrieveProductInfo(barcode.value).then(() => {
             console.log("Processing finished");
           });
+        } else if (products.value?.length === 1) {
+          // Home fork: the same code again (e.g. scanned twice) keeps its results; reselect a single match
+          selectedRow.value = 0;
         }
       } else {
         barcode.value = "";
