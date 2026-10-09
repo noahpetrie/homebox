@@ -30,7 +30,11 @@
   }, null);
 
   // the path from the room down, e.g. Office › IKEA ALEX Drawer Unit › Drawer 1 › Top left
-  const trail = computed(() => (props.path ?? []).filter(p => p.type === "location"));
+  const trail = computed(() => {
+    const all = props.path ?? [];
+    const end = all.findIndex(p => p.id === props.locationId);
+    return end >= 0 ? all.slice(0, end + 1) : all;
+  });
 </script>
 
 <template>
