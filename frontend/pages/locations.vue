@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import { packVersion } from "~/composables/use-packing";
   import { useI18n } from "vue-i18n";
   import { useTreeState } from "~~/components/Location/Tree/tree-state";
   import MdiCollapseAllOutline from "~icons/mdi/collapse-all-outline";
@@ -34,7 +35,7 @@
 
   const api = useUserApi();
 
-  const { data: tree } = useAsyncData(async () => {
+  const { data: tree, refresh: refreshTree } = useAsyncData(async () => {
     const { data, error } = await api.items.getTree({
       withItems: true,
     });
@@ -137,11 +138,11 @@
     }
   });
 
-  const { data: locationSummaries } = useAsyncData(async () => {
+  const { data: locationSummaries, refresh: refreshSummaries } = useAsyncData(async () => {
     const { data } = await api.items.getLocations({ filterChildren: false });
     return data ?? [];
   });
-  const { data: allItems } = useAsyncData(async () => {
+  const { data: allItems, refresh: refreshAllItems } = useAsyncData(async () => {
     const { data } = await api.items.getAll({ pageSize: 1000, orderBy: "createdAt" });
     return data?.items ?? [];
   });
@@ -203,6 +204,13 @@
   function newLocation() {
     openDialog(DialogID.CreateEntity, { params: { baseType: "location" } });
   }
+
+  // Home fork: keep counts current while packing items into a box
+  watch(packVersion, () => {
+    refreshTree();
+    refreshSummaries();
+    refreshAllItems();
+  });
 </script>
 
 <template>
