@@ -179,13 +179,12 @@
         :max-length="255"
         :min-length="1"
       />
+      <p v-if="bookDetails?.summary" class="-mt-1 px-1 text-sm text-muted-foreground">
+        {{ bookDetails.summary }} <span class="opacity-70">· from Open Library</span>
+      </p>
       <PhotoUploader
         camera
-        :label="
-          $t('components.entity.create_modal.entity_photo', {
-            type: t(selectedEntityType ? selectedEntityType.name : 'global.entity'),
-          })
-        "
+        label="Photos"
         :button-label="$t('components.entity.create_modal.upload_photos')"
         :existing-count="form.photos.length"
         @selected="appendPhotos"
@@ -358,6 +357,86 @@
       // storage unavailable; nothing is remembered
     }
   };
+
+  // Home fork: an ISBN scan is a book, so switch to the Book type and fill its details from
+  // Open Library (title without the store's ": A Novel" suffixes, author, publisher, year,
+  // pages, format, and a cover when the product lookup had no image). The details are saved
+  // as custom fields next to the ISBN. A type picked this way isn't remembered as "last used".
+  type BookDetails = { title: string; fields: [string, string][]; summary: string };
+  const bookDetails = ref<BookDetails | null>(null);
+  const autoTyped = ref(false);
+  const isIsbn = (code: string) => /^97[89]\d{10}$/.test(code);
+
+  async function fetchJson(url: string) {
+    const res = await fetch(url);
+    return res.ok ? res.json() : null;
+  }
+
+  async function lookupBook(isbn: string): Promise<BookDetails | null> {
+    const ed = await fetchJson(`https://openlibrary.org/isbn/${isbn}.json`);
+    if (!ed) return null;
+    let authorKeys: string[] = (ed.authors ?? []).map((a: { key: string }) => a.key);
+    if (!authorKeys.length && ed.works?.[0]?.key) {
+      const work = await fetchJson(`https://openlibrary.org${ed.works[0].key}.json`);
+      authorKeys = (work?.authors ?? []).map((a: { author: { key: string } }) => a.author?.key).filter(Boolean);
+    }
+    const authors = (await Promise.all(authorKeys.slice(0, 4).map(k => fetchJson(`https://openlibrary.org${k}.json`))))
+      .map(a => a?.name as string | undefined)
+      .filter(Boolean) as string[];
+    const year = String(ed.publish_date ?? "").match(/\b(1[5-9]|20)\d{2}\b/)?.[0] ?? "";
+    const publisher = (ed.publishers ?? [])[0] ?? "";
+    const pages = ed.number_of_pages ? String(ed.number_of_pages) : "";
+    const format = ed.physical_format ? String(ed.physical_format).replace(/^./, c => c.toUpperCase()) : "";
+    const subtitle = ed.subtitle ? String(ed.subtitle).replace(/^./, c => c.toUpperCase()) : "";
+    const fields: [string, string][] = (
+      [
+        ["Subtitle", subtitle],
+        ["Author", authors.join(" and ")],
+        ["Publisher", publisher],
+        ["Published", year],
+        ["Pages", pages],
+        ["Format", format],
+      ] as [string, string][]
+    ).filter(([, v]) => v);
+    const summary = [authors.join(", "), publisher, year, pages && `${pages} pages`].filter(Boolean).join(" · ");
+    return { title: String(ed.title ?? "").trim(), fields, summary };
+  }
+
+  async function coverFromOpenLibrary(isbn: string) {
+    const res = await fetch(`https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    if (blob.size < 2000) return null; // a placeholder, not a cover
+    return await new Promise<string>(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  async function applyBookScan(isbn: string) {
+    const book = entityTypes.value.find(t => !t.isLocation && t.name === "Book");
+    if (book && selectedEntityType.value?.id !== book.id) {
+      await onEntityTypeChanged(book.id);
+      autoTyped.value = true;
+    }
+    try {
+      const details = await lookupBook(isbn);
+      if (!details || scannedProduct.value?.barcode?.trim() !== isbn) return;
+      bookDetails.value = details;
+      if (details.title) form.name = details.title;
+      if (!form.photos.length) {
+        const cover = await coverFromOpenLibrary(isbn);
+        if (cover && !form.photos.length) {
+          appendPhotos([
+            { photoName: "cover.jpg", fileBase64: cover, primary: true, file: dataURLtoFile(cover, "cover.jpg") },
+          ]);
+        }
+      }
+    } catch (err) {
+      console.warn("Open Library lookup failed", err);
+    }
+  }
 
   // Home fork: things you already have with the scanned barcode (checked when a scan opens this).
   const duplicates = ref<EntitySummary[]>([]);
@@ -568,6 +647,8 @@
       subItemCreate.value = false;
       scannedProduct.value = null;
       duplicates.value = [];
+      bookDetails.value = null;
+      autoTyped.value = false;
       let parentItemLocationId = null;
       parent.value = {};
       form.parentId = null;
@@ -623,6 +704,9 @@
 
         // Restore last used template if available
         await restoreLastTemplate();
+        // after the template, so a book scan still ends up as a Book with its own details
+        const scannedCode = params.product?.barcode?.trim() ?? "";
+        if (isIsbn(scannedCode)) applyBookScan(scannedCode);
       } else {
         selectedEntityType.value = entityTypes.value.find(t => t.isLocation) || null;
       }
@@ -735,13 +819,13 @@
     );
 
     if (scannedProduct.value && !selectedEntityType.value?.isLocation) {
-      await saveScannedIdentifiers(data.id, scannedProduct.value);
+      await saveScannedIdentifiers(data.id, scannedProduct.value, bookDetails.value?.fields ?? []);
     }
     const wasScanned = !!scannedProduct.value;
     scannedProduct.value = null;
     duplicates.value = [];
     if (!selectedEntityType.value?.isLocation) {
-      if (selectedEntityType.value?.id) writeLast(LAST_TYPE_KEY, selectedEntityType.value.id);
+      if (selectedEntityType.value?.id && !autoTyped.value) writeLast(LAST_TYPE_KEY, selectedEntityType.value.id);
       if (form.location?.id) writeLast(LAST_LOCATION_KEY, form.location.id as string);
     }
 
@@ -802,7 +886,7 @@
 
   // Home fork: keep the scanned barcode (as "ISBN" for books) plus the publisher/brand and
   // model number from the lookup. EntityCreate has no such fields, so set them right after.
-  async function saveScannedIdentifiers(id: string, product: BarcodeProduct) {
+  async function saveScannedIdentifiers(id: string, product: BarcodeProduct, extra: [string, string][] = []) {
     const code = (product.barcode || "").trim();
     if (!code) return;
     const fieldName = /^97[89]\d{10}$/.test(code) ? "ISBN" : "Barcode";
@@ -814,6 +898,19 @@
     }
 
     const fields = (item.fields || []).filter(f => f.name !== fieldName);
+    for (const [name, textValue] of extra) {
+      if (fields.some(f => f.name === name && f.textValue)) continue;
+      const i = fields.findIndex(f => f.name === name);
+      if (i >= 0) fields.splice(i, 1);
+      fields.push({
+        id: null,
+        name,
+        type: "text",
+        textValue,
+        numberValue: 0,
+        booleanValue: false,
+      } as unknown as EntityFieldData);
+    }
     fields.push({
       id: null,
       name: fieldName,
@@ -823,6 +920,10 @@
       booleanValue: false,
     } as unknown as EntityFieldData);
 
+    // keep the book fields in the usual order: Subtitle, Author, ISBN, Publisher, ...
+    const authorAt = fields.findIndex(f => f.name === "Author");
+    if (authorAt >= 0) fields.splice(authorAt + 1, 0, fields.pop()!);
+
     const { error: updateError } = await api.items.update(id, {
       ...item,
       parentId: item.parent?.id || null,
@@ -830,7 +931,7 @@
       entityTypeId: item.entityType!.id,
       purchasePrice: item.purchasePrice || 0,
       soldPrice: item.soldPrice || 0,
-      manufacturer: item.manufacturer || product.manufacturer || "",
+      manufacturer: item.manufacturer || product.manufacturer || extra.find(([n]) => n === "Publisher")?.[1] || "",
       modelNumber: item.modelNumber || product.modelNumber || (fieldName === "ISBN" ? code : ""),
       fields,
     } as unknown as EntityUpdate);
