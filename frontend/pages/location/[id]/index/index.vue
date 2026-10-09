@@ -368,6 +368,8 @@
         v-if="location && mapPhotoSrc && location.children && location.children.length"
         :photo-src="mapPhotoSrc"
         :areas="location.children"
+        :loose="items ?? []"
+        :location-name="location.name"
         @mapped="n => (mapCount = n)"
       />
 
