@@ -6,8 +6,8 @@
   // focused the scanner just types into it as usual (handy for search or the Barcode field).
   import { toast } from "@/components/ui/sonner";
   import { DialogID, useDialog } from "~/components/ui/dialog-provider/utils";
-  import type { EntitySummary } from "~~/lib/api/types/data-contracts";
   import { lastScanSource } from "~/composables/use-scan-source";
+  import { findByCode, packCode, packTarget } from "~/composables/use-packing";
 
   const api = useUserApi();
   const { activeDialog, openDialog, closeDialog } = useDialog();
@@ -67,17 +67,6 @@
     }, IDLE_MS);
   }
 
-  async function findExisting(code: string): Promise<EntitySummary[]> {
-    const fieldName = /^97[89]\d{10}$/.test(code) ? "ISBN" : "Barcode";
-    const [byField, bySearch] = await Promise.all([
-      api.items.getAll({ fields: [`${fieldName}=${code}`], pageSize: 10 }),
-      api.items.getAll({ q: code, pageSize: 10 }),
-    ]);
-    const seen = new Map<string, EntitySummary>();
-    for (const it of [...(byField.data?.items ?? []), ...(bySearch.data?.items ?? [])]) seen.set(it.id, it);
-    return [...seen.values()];
-  }
-
   async function handleScan(code: string) {
     if (busy) return;
     busy = true;
@@ -91,7 +80,10 @@
         return;
       }
 
-      const found = await findExisting(code);
+      // packing mode: the scanned item goes into the box
+      if (packTarget.value && (await packCode(api, code)) === "done") return;
+
+      const found = packTarget.value ? [] : await findByCode(api, code);
       if (found.length === 1) {
         toast.success(`Scanned: ${found[0]!.name}`);
         await navigateTo(`/item/${found[0]!.id}`);
