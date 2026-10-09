@@ -385,7 +385,12 @@
 
       <!-- Items in this location -->
       <section v-if="location && items">
-        <LocationItemsBrowser :items="items" @refresh="refreshItemList" />
+        <LocationItemsBrowser
+          :items="items"
+          :container="{ id: location.id, name: location.name }"
+          :outside="location.parent ? { id: location.parent.id, name: location.parent.name } : null"
+          @refresh="refreshItemList"
+        />
       </section>
 
       <!-- Child locations -->

@@ -15,9 +15,69 @@
   import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
   import ItemCard from "~/components/Item/Card.vue";
   import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
+  import ItemContextMenu from "~/components/Location/ItemContextMenu.vue";
+  import LocationSelector from "~/components/Location/Selector.vue";
+  import { toast } from "@/components/ui/sonner";
+  import { DialogRoot } from "reka-ui";
+  import { DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 
-  const props = defineProps<{ items: EntitySummary[] }>();
-  defineEmits<{ (e: "refresh"): void }>();
+  const props = defineProps<{
+    items: EntitySummary[];
+    /** the location being viewed (e.g. a box) and where "Take out" puts things (its room) */
+    container?: { id: string; name: string } | null;
+    outside?: { id: string; name: string } | null;
+  }>();
+  const emit = defineEmits<{ (e: "refresh"): void }>();
+
+  // Home fork: right-click / long-press actions on an item (see ItemContextMenu)
+  const confirm = useConfirm();
+  const moving = ref<EntitySummary | null>(null);
+  const moveTo = ref<EntitySummary | null>(null);
+  const moveOpen = computed({
+    get: () => !!moving.value,
+    set: v => {
+      if (!v) moving.value = null;
+    },
+  });
+
+  async function relocate(item: EntitySummary, target: { id: string; name: string }) {
+    const { error } = await api.items.patch(item.id, { id: item.id, parentId: target.id });
+    if (error) {
+      toast.error(`Couldn't move ${item.name}`);
+      return;
+    }
+    toast.success(`${item.name} → ${target.name}`);
+    emit("refresh");
+  }
+
+  function takeOut(item: EntitySummary) {
+    if (props.outside) relocate(item, props.outside);
+  }
+
+  function startMove(item: EntitySummary) {
+    moveTo.value = null;
+    moving.value = item;
+  }
+
+  async function confirmMove() {
+    const item = moving.value;
+    const target = moveTo.value;
+    if (!item || !target) return;
+    moving.value = null;
+    await relocate(item, { id: target.id, name: target.name });
+  }
+
+  async function remove(item: EntitySummary) {
+    const result = await confirm.open(`Delete "${item.name}"? This removes it from Homebox completely.`);
+    if (result.isCanceled) return;
+    const { error } = await api.items.delete(item.id);
+    if (error) {
+      toast.error(`Couldn't delete ${item.name}`);
+      return;
+    }
+    toast.success(`Deleted ${item.name}`);
+    emit("refresh");
+  }
 
   const api = useUserApi();
 
@@ -187,40 +247,78 @@
 
     <!-- Grid -->
     <div v-if="view === 'grid'" class="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-      <ItemCard v-for="it in visible" :key="it.id" :item="it" hide-location :subtitle="subtitle(it)" />
+      <ItemContextMenu
+        v-for="it in visible"
+        :key="it.id"
+        :item="it"
+        :outside="outside"
+        :container-name="container?.name"
+        @take-out="takeOut"
+        @move="startMove"
+        @delete="remove"
+      >
+        <ItemCard :item="it" hide-location :subtitle="subtitle(it)" />
+      </ItemContextMenu>
     </div>
 
     <!-- List -->
     <div v-else-if="view === 'list'" class="overflow-hidden rounded-lg border bg-card">
-      <NuxtLink
+      <ItemContextMenu
         v-for="it in visible"
         :key="it.id"
-        :to="`/item/${it.id}`"
-        class="flex items-center gap-3 border-b px-3 py-2 last:border-b-0 hover:bg-accent/60"
+        :item="it"
+        :outside="outside"
+        :container-name="container?.name"
+        @take-out="takeOut"
+        @move="startMove"
+        @delete="remove"
       >
-        <img
-          v-if="thumbUrl(it)"
-          :src="thumbUrl(it)"
-          :alt="it.name"
-          loading="lazy"
-          class="h-14 w-10 shrink-0 rounded-sm object-contain"
-        />
-        <div v-else class="flex h-14 w-10 shrink-0 items-center justify-center rounded-sm bg-muted">
-          <MdiPackageVariant class="size-5 opacity-50" />
-        </div>
-        <div class="min-w-0 grow">
-          <div class="truncate font-medium">{{ it.name }}</div>
-          <div class="truncate text-sm text-muted-foreground">{{ subtitle(it) || it.description }}</div>
-        </div>
-        <span v-if="extras[it.id]?.isbn" class="hidden shrink-0 font-mono text-xs text-muted-foreground md:block">
-          {{ extras[it.id]!.isbn }}
-        </span>
-        <span class="hidden shrink-0 text-xs text-muted-foreground sm:block">{{ it.entityType?.name }}</span>
-        <MdiChevronRight class="size-5 shrink-0 opacity-40" />
-      </NuxtLink>
+        <NuxtLink
+          :to="`/item/${it.id}`"
+          class="flex items-center gap-3 border-b px-3 py-2 last:border-b-0 hover:bg-accent/60"
+        >
+          <img
+            v-if="thumbUrl(it)"
+            :src="thumbUrl(it)"
+            :alt="it.name"
+            loading="lazy"
+            class="h-14 w-10 shrink-0 rounded-sm object-contain"
+          />
+          <div v-else class="flex h-14 w-10 shrink-0 items-center justify-center rounded-sm bg-muted">
+            <MdiPackageVariant class="size-5 opacity-50" />
+          </div>
+          <div class="min-w-0 grow">
+            <div class="truncate font-medium">{{ it.name }}</div>
+            <div class="truncate text-sm text-muted-foreground">{{ subtitle(it) || it.description }}</div>
+          </div>
+          <span v-if="extras[it.id]?.isbn" class="hidden shrink-0 font-mono text-xs text-muted-foreground md:block">
+            {{ extras[it.id]!.isbn }}
+          </span>
+          <span class="hidden shrink-0 text-xs text-muted-foreground sm:block">{{ it.entityType?.name }}</span>
+          <MdiChevronRight class="size-5 shrink-0 opacity-40" />
+        </NuxtLink>
+      </ItemContextMenu>
     </div>
 
     <!-- Table: the original selectable view (bulk actions) -->
     <ItemViewSelectable v-else :items="items" view="table" @refresh="$emit('refresh')" />
+
+    <p v-if="view !== 'table' && visible.length" class="mt-3 text-center text-xs text-muted-foreground">
+      Right-click an item (long-press on a phone) to
+      {{ outside ? `take it out of ${container?.name}, ` : "" }}move or delete it.
+    </p>
+
+    <DialogRoot v-model:open="moveOpen">
+      <DialogContent class="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Move {{ moving?.name }}</DialogTitle>
+        </DialogHeader>
+        <LocationSelector v-model="moveTo" />
+        <DialogFooter>
+          <Button variant="outline" @click="moving = null">Cancel</Button>
+          <Button :disabled="!moveTo" @click="confirmMove">Move</Button>
+        </DialogFooter>
+      </DialogContent>
+    </DialogRoot>
   </section>
 </template>
