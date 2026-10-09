@@ -40,12 +40,11 @@
   import LabelMaker from "~/components/global/LabelMaker.vue";
   import Markdown from "~/components/global/Markdown.vue";
   import DetailsSection from "~/components/global/DetailsSection/DetailsSection.vue";
-  import BaseSectionHeader from "@/components/Base/SectionHeader.vue";
   import LocationItemsBrowser from "~/components/Location/ItemsBrowser.vue";
   import LocationMap from "~/components/Location/Map.vue";
+  import LocationChildren from "~/components/Location/Children.vue";
   import ItemAttachmentsList from "~/components/Item/AttachmentsList.vue";
   import ItemImageDialog from "~/components/Item/ImageDialog.vue";
-  import LocationCard from "~/components/Location/Card.vue";
   import TagChip from "~/components/Tag/Chip.vue";
 
   definePageMeta({
@@ -407,7 +406,7 @@
       </BaseCard>
 
       <!-- Items in this location -->
-      <section v-if="location && items && !(hasMap && items.length === 0)">
+      <section v-if="location && items && !(items.length === 0 && location.children && location.children.length)">
         <LocationItemsBrowser
           :items="items"
           :container="{ id: location.id, name: location.name }"
@@ -416,13 +415,12 @@
         />
       </section>
 
-      <!-- Child locations (the map above already shows them when there is one) -->
-      <section v-if="location && location.children && location.children.length > 0 && !hasMap" class="mt-6">
-        <BaseSectionHeader class="mb-5"> {{ $t("locations.child_locations") }} </BaseSectionHeader>
-        <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
-          <LocationCard v-for="child in location.children" :key="child.id" :location="child" />
-        </div>
-      </section>
+      <!-- Home fork: sub-locations as rows with their contents (the map shows them when there is one) -->
+      <LocationChildren
+        v-if="location && location.children && location.children.length > 0 && !hasMap"
+        :parent-id="location.id"
+        :areas="location.children"
+      />
     </div>
   </div>
 </template>
