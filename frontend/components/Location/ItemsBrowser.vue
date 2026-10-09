@@ -69,6 +69,9 @@
     return [...counts.entries()].sort((a, b) => b[1] - a[1]);
   });
 
+  // "Book" → "Books", but "Electronics" and "Furniture & Decor" stay as they are
+  const plural = (name: string) => (/s$|&/i.test(name) ? name : `${name}s`);
+
   function subtitle(it: EntitySummary): string {
     const x = extras.value[it.id];
     if (!x) return "";
@@ -174,7 +177,7 @@
         :variant="typeFilter === name ? 'default' : 'outline'"
         @click="typeFilter = typeFilter === name ? 'all' : name"
       >
-        {{ name }}s {{ count }}
+        {{ plural(name) }} {{ count }}
       </Button>
     </div>
 
