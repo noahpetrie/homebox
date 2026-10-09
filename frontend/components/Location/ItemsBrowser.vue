@@ -16,7 +16,7 @@
   import ItemCard from "~/components/Item/Card.vue";
   import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
   import ItemContextMenu from "~/components/Location/ItemContextMenu.vue";
-  import { moveItem, PACKED_FROM, parsePackedFrom, type Place } from "~/composables/use-packing";
+  import { moveItem, PACKED_FROM, packedLog, packTarget, parsePackedFrom, type Place } from "~/composables/use-packing";
   import LocationSelector from "~/components/Location/Selector.vue";
   import { toast } from "@/components/ui/sonner";
   import { DialogRoot } from "reka-ui";
@@ -163,7 +163,10 @@
       const hay = [it.name, it.description, x?.author, x?.isbn, x?.manufacturer, x?.model].join(" ").toLowerCase();
       return q.split(/\s+/).every(word => hay.includes(word));
     });
-    const by = sort.value;
+    // while packing into this location, show what was just scanned / added first
+    const packingHere = !!packTarget.value && packTarget.value.id === props.container?.id;
+    const by = packingHere ? "recent" : sort.value;
+    const packedRank = new Map(packedLog.value.map((e, i) => [e.id, i]));
     const authorKey = (it: EntitySummary) => {
       // sort by surname: last word of the first listed author
       const a = extras.value[it.id]?.author.split(/,| and /)[0]?.trim() ?? "";
@@ -173,7 +176,16 @@
       if (by === "name") return a.name.localeCompare(b.name);
       if (by === "author") return authorKey(a).localeCompare(authorKey(b)) || a.name.localeCompare(b.name);
       if (by === "year") return (extras.value[b.id]?.year ?? "").localeCompare(extras.value[a.id]?.year ?? "");
-      return String(b.createdAt).localeCompare(String(a.createdAt));
+      // "Recently added": packed this session first (newest first), then by when the item last
+      // changed (moving it here counts), then by when it was created
+      if (packingHere) {
+        const ra = packedRank.get(a.id) ?? Infinity;
+        const rb = packedRank.get(b.id) ?? Infinity;
+        if (ra !== rb) return ra - rb;
+      }
+      return (
+        String(b.updatedAt).localeCompare(String(a.updatedAt)) || String(b.createdAt).localeCompare(String(a.createdAt))
+      );
     });
     return list;
   });
@@ -194,7 +206,12 @@
         <Input v-model="query" type="search" placeholder="Search title, author, ISBN…" class="h-9 pl-8" />
       </div>
       <div class="ml-auto flex flex-wrap items-center gap-2">
-        <Select v-if="view !== 'table'" v-model="sort">
+        <span
+          v-if="view !== 'table' && packTarget && packTarget.id === container?.id"
+          class="text-xs text-muted-foreground"
+          >Newest packed first</span
+        >
+        <Select v-else-if="view !== 'table'" v-model="sort">
           <SelectTrigger class="h-9 w-40"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="recent">Recently added</SelectItem>
