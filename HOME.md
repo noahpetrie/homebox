@@ -46,6 +46,13 @@ AGPL requires.
 - **Create dialog photos** are small thumbnails with delete / rotate / main-photo buttons.
 - **"Create and add another" after a scan** reopens the camera only after a camera scan; after
   a handheld-scanner scan it closes the form and waits for the next scan.
+- **Packing mode (boxes).** "Pack items" on a location (e.g. one of the Box location type, which
+  lives in the database) puts a bar on every page; each handheld or camera scan then moves the
+  item there (the camera stays on), recording a "Packed from" field linking the previous
+  location. Unknown barcodes go through the product lookup and are created in the box.
+- **Item right-click menu** on location pages (long-press on phones): Open, Take out (back to
+  "Packed from", else the box's room), Move to…, Delete. Type chips don't double the plural.
+  `[text](/path)` custom fields render as in-app links.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
