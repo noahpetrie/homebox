@@ -53,6 +53,9 @@ AGPL requires.
 - **Item right-click menu** on location pages (long-press on phones): Open, Take out (back to
   "Packed from", else the box's room), Move to…, Delete. Type chips don't double the plural.
   `[text](/path)` custom fields render as in-app links.
+- **Barcode fallbacks.** Products found are cached for a week (UPCitemDB's free tier allows
+  ~100 lookups a day); Open Pet Food Facts is also queried. When nothing is found, the Import
+  product dialog offers a Google search and "Add it anyway" (Create with the barcode saved).
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
