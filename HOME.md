@@ -33,6 +33,11 @@ AGPL requires.
 - **Item types.** Electronics, Appliance, Furniture & Decor and Tool, each with a default
   template of fields. These live in the database, not the code; `home/create-types.py <url>
   <token>` creates or updates them.
+- **Handheld barcode scanner.** A Bluetooth/USB scanner (which types the code like a
+  keyboard) works anywhere outside a text field: a known code opens the item (or a search
+  when several match), Homebox label QR codes open their page, and anything else starts the
+  product lookup. Scans are told apart from typing by speed; the code can end with Enter,
+  Tab or Down Arrow (the PecuMecu sends Down Arrow) or nothing.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
