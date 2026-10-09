@@ -276,6 +276,7 @@
   import PhotoUploader from "~/components/Form/PhotoUploader.vue";
   import PhotoUploaderPreview from "~/components/Form/PhotoUploaderPreview.vue";
   import { lastScanSource } from "~/composables/use-scan-source";
+  import { notePacked, packTarget } from "~/composables/use-packing";
   import {
     deletePhoto,
     dataURLtoFile,
@@ -715,7 +716,9 @@
         selectedEntityType.value = entityTypes.value.find(t => t.isLocation) || null;
       }
 
+      // Home fork: while packing, new things go straight into the box
       const locId =
+        (params.baseType === "item" && !params.subItem ? packTarget.value?.id : null) ||
         (locationId.value ? locationId.value : parentItemLocationId) ||
         (params.baseType === "item" ? readLast(LAST_LOCATION_KEY) : null);
 
@@ -830,6 +833,9 @@
       await saveScannedIdentifiers(data.id, scannedProduct.value, bookDetails.value?.fields ?? []);
     }
     const wasScanned = !!scannedProduct.value;
+    if (packTarget.value && form.location?.id === packTarget.value.id && !selectedEntityType.value?.isLocation) {
+      notePacked({ id: data.id, name: data.name });
+    }
     scannedProduct.value = null;
     duplicates.value = [];
     if (!selectedEntityType.value?.isLocation) {

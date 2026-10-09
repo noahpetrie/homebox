@@ -7,7 +7,7 @@
   import { toast } from "@/components/ui/sonner";
   import { DialogID, useDialog } from "~/components/ui/dialog-provider/utils";
   import { lastScanSource } from "~/composables/use-scan-source";
-  import { findByCode, packCode, packTarget } from "~/composables/use-packing";
+  import { findByCode, packCode, packLabel, packTarget } from "~/composables/use-packing";
 
   const api = useUserApi();
   const { activeDialog, openDialog, closeDialog } = useDialog();
@@ -76,6 +76,7 @@
       // Homebox label QR codes hold a link to the item or location.
       if (/^https?:\/\//i.test(code)) {
         const path = new URL(code).pathname.replace(/[^a-zA-Z0-9-_/]/g, "");
+        if (await packLabel(api, path)) return; // packing: an item's label packs it
         await navigateTo(path);
         return;
       }
