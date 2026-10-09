@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/hay-kot/httpkit/errchain"
@@ -134,7 +135,24 @@ var openFactsSources = []openFactsSource{
 	{Name: "openfoodfacts.org", BaseURL: "https://world.openfoodfacts.org"},
 	{Name: "openbeautyfacts.org", BaseURL: "https://world.openbeautyfacts.org"},
 	{Name: "openproductsfacts.org", BaseURL: "https://world.openproductsfacts.org"},
+	// Home fork: one more free source
+	{Name: "openpetfoodfacts.org", BaseURL: "https://world.openpetfoodfacts.org"},
 }
+
+// Home fork: remember products that were found for a week, so scanning the same barcode again
+// (or checking it twice while adding) doesn't spend another lookup from UPCitemDB's small free
+// daily allowance. Misses aren't cached: they may only be a temporary rate limit.
+const productCacheTTL = 7 * 24 * time.Hour
+
+type cachedProducts struct {
+	products []repo.BarcodeProduct
+	at       time.Time
+}
+
+var (
+	productCacheMu sync.Mutex
+	productCache   = map[string]cachedProducts{}
+)
 
 type BARCODESPIDER_COMResponse struct {
 	ItemResponse struct {
@@ -477,6 +495,14 @@ func (ctrl *V1Controller) HandleProductSearchFromBarcode(conf config.BarcodeAPIC
 
 		log.Info().Msg("Processing barcode lookup request on: " + q.EAN)
 
+		productCacheMu.Lock()
+		hit, ok := productCache[q.EAN]
+		productCacheMu.Unlock()
+		if ok && time.Since(hit.at) < productCacheTTL {
+			log.Info().Msg("Barcode lookup served from cache: " + q.EAN)
+			return server.JSON(w, http.StatusOK, hit.products)
+		}
+
 		var products []repo.BarcodeProduct
 
 		// www.ean-search.org/: not free
@@ -529,6 +555,9 @@ func (ctrl *V1Controller) HandleProductSearchFromBarcode(conf config.BarcodeAPIC
 		}
 
 		if len(products) != 0 {
+			productCacheMu.Lock()
+			productCache[q.EAN] = cachedProducts{products: products, at: time.Now()}
+			productCacheMu.Unlock()
 			return server.JSON(w, http.StatusOK, products)
 		}
 

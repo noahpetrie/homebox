@@ -5,8 +5,24 @@
         <DialogTitle>{{ $t("components.item.product_import.title") }}</DialogTitle>
       </DialogHeader>
 
+      <!-- Home fork: not found is a next step, not an error. Offer a web search and adding it
+           anyway with the barcode saved. -->
+      <div v-if="notFound" class="rounded-lg border-l-4 border-l-amber-500 bg-amber-500/10 p-4 text-sm" role="status">
+        <p class="font-medium">Not in the product databases</p>
+        <p class="mt-1 text-muted-foreground">
+          The free databases don't know every product, and the main one has a small daily limit. Look it up, then add
+          it. The barcode is saved with it, so the next scan finds it.
+        </p>
+        <div class="mt-3 flex flex-wrap gap-2">
+          <Button as="a" variant="outline" :href="searchUrl" target="_blank" rel="noopener noreferrer">
+            <MdiMagnify /> Search Google for {{ barcode }}
+          </Button>
+          <Button type="button" @click="addAnyway"><MdiPlus /> Add it anyway</Button>
+        </div>
+      </div>
+
       <div
-        v-if="errorMessage"
+        v-else-if="errorMessage"
         class="flex items-center gap-2 rounded-md border border-destructive bg-destructive/10 p-4 text-destructive"
         role="alert"
       >
@@ -93,6 +109,8 @@
   import type { BarcodeProduct } from "~~/lib/api/types/data-contracts";
   import { useDialog } from "~/components/ui/dialog-provider";
   import MdiAlertCircleOutline from "~icons/mdi/alert-circle-outline";
+  import MdiMagnify from "~icons/mdi/magnify";
+  import MdiPlus from "~icons/mdi/plus";
   import MdiBarcode from "~icons/mdi/barcode";
   import MdiLoading from "~icons/mdi/loading";
   import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -151,8 +169,31 @@
     }
   }
 
+  const notFound = ref(false);
+  const searchUrl = computed(() => `https://www.google.com/search?q=${encodeURIComponent(barcode.value.trim())}`);
+
+  function addAnyway() {
+    const code = barcode.value.trim();
+    openDialog(DialogID.CreateEntity, {
+      params: {
+        baseType: "item",
+        product: {
+          barcode: code,
+          imageBase64: "",
+          imageURL: "",
+          item: { name: "", description: "" },
+          manufacturer: "",
+          modelNumber: "",
+          notes: "",
+          search_engine_name: "",
+        } as unknown as BarcodeProduct,
+      },
+    });
+  }
+
   async function retrieveProductInfo(barcode: string) {
     errorMessage.value = null;
+    notFound.value = false;
 
     if (!barcode || barcode.trim().length === 0 || !/^[0-9]+$/.test(barcode)) {
       errorMessage.value = t("components.item.product_import.error_invalid_barcode");
@@ -176,11 +217,13 @@
         }
       }
       if (result.error) {
+        notFound.value = true;
         errorMessage.value = t("errors.api_failure") + result.error;
         console.error(errorMessage.value);
       } else {
         if (result.data === undefined || result.data.length === undefined || result.data.length === 0) {
           errorMessage.value = t("components.item.product_import.error_not_found");
+          notFound.value = true;
         }
 
         products.value = result.data;
