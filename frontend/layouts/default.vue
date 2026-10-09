@@ -13,6 +13,7 @@
     <ItemBarcodeModal />
     <AppQuickMenuModal :actions="quickMenuActions" />
     <AppScannerModal />
+    <AppHardwareScanner />
     <CollectionCreateModal />
     <CollectionJoinModal />
     <CollectionInviteCreateModal />
@@ -107,7 +108,9 @@
                         <span>{{ n.name.value }}</span>
                       </SidebarMenuLink>
                       <CollapsibleTrigger as-child>
-                        <SidebarMenuButton class="flex size-12 items-center justify-center group-data-[collapsible=icon]:hidden">
+                        <SidebarMenuButton
+                          class="flex size-12 items-center justify-center group-data-[collapsible=icon]:hidden"
+                        >
                           <MdiChevronRight
                             class="transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90"
                           />
@@ -293,6 +296,7 @@
   import ItemBarcodeModal from "~/components/Item/BarcodeModal.vue";
   import AppQuickMenuModal from "~/components/App/QuickMenuModal.vue";
   import AppScannerModal from "~/components/App/ScannerModal.vue";
+  import AppHardwareScanner from "~/components/App/HardwareScanner.vue";
   import AppLogo from "~/components/App/Logo.vue";
   import AppHeaderDecor from "~/components/App/HeaderDecor.vue";
   import AppHeaderText from "~/components/App/HeaderText.vue";
