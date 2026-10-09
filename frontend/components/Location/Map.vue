@@ -13,6 +13,7 @@
   const REGION_FIELD = "Region";
 
   const props = defineProps<{ photoSrc: string; areas: EntitySummary[] }>();
+  const emit = defineEmits<{ (e: "mapped", count: number): void }>();
 
   const api = useUserApi();
 
@@ -47,6 +48,7 @@
       })
     );
     mapped.value = out.sort((p, q) => p.y - q.y || p.x - q.x);
+    emit("mapped", out.length);
   }
 
   watch(() => props.areas.map(a => a.id).join(), load, { immediate: true });
@@ -60,8 +62,8 @@
 <template>
   <section v-if="mapped.length" class="mt-4 grid gap-4 md:grid-cols-5">
     <div class="md:col-span-3">
-      <div class="relative overflow-hidden rounded-lg border bg-card shadow-sm">
-        <img :src="photoSrc" alt="" class="block w-full select-none" draggable="false" />
+      <div class="relative mx-auto w-fit overflow-hidden rounded-lg border bg-card shadow-sm">
+        <img :src="photoSrc" alt="" class="block max-h-[72vh] w-auto max-w-full select-none" draggable="false" />
         <button
           v-for="a in mapped"
           :key="a.id"
