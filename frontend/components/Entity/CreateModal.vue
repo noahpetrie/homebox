@@ -415,6 +415,8 @@
     });
   }
 
+  let bookLookup: Promise<void> | null = null;
+
   async function applyBookScan(isbn: string) {
     const book = entityTypes.value.find(t => !t.isLocation && t.name === "Book");
     if (book && selectedEntityType.value?.id !== book.id) {
@@ -650,6 +652,7 @@
       duplicates.value = [];
       bookDetails.value = null;
       autoTyped.value = false;
+      bookLookup = null;
       let parentItemLocationId = null;
       parent.value = {};
       form.parentId = null;
@@ -707,7 +710,7 @@
         await restoreLastTemplate();
         // after the template, so a book scan still ends up as a Book with its own details
         const scannedCode = params.product?.barcode?.trim() ?? "";
-        if (isIsbn(scannedCode)) applyBookScan(scannedCode);
+        bookLookup = isIsbn(scannedCode) ? applyBookScan(scannedCode) : null;
       } else {
         selectedEntityType.value = entityTypes.value.find(t => t.isLocation) || null;
       }
@@ -758,6 +761,10 @@
     loading.value = true;
 
     if (shift?.value) close = false;
+
+    // a book scan's Open Library lookup (details and cover) may still be running; give it a
+    // few seconds so its cover and fields are saved too
+    if (bookLookup) await Promise.race([bookLookup, new Promise(resolve => setTimeout(resolve, 8000))]);
 
     let error, data;
 
@@ -938,7 +945,8 @@
       entityTypeId: item.entityType!.id,
       purchasePrice: item.purchasePrice || 0,
       soldPrice: item.soldPrice || 0,
-      manufacturer: item.manufacturer || product.manufacturer || extra.find(([n]) => n === "Publisher")?.[1] || "",
+      // for books the publisher, rather than the store's brand (often the parent company)
+      manufacturer: extra.find(([n]) => n === "Publisher")?.[1] || item.manufacturer || product.manufacturer || "",
       modelNumber: item.modelNumber || product.modelNumber || (fieldName === "ISBN" ? code : ""),
       fields,
     } as unknown as EntityUpdate);
