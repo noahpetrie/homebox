@@ -69,6 +69,8 @@ AGPL requires.
   with item counts including nested compartments, thumbnails, and compartment chips in layout
   order; empty ones are one line with "Pack here". The empty item list is hidden when things
   live in sub-locations.
+- **Dashboard.** No Total Value card (the value is in the insurance report), so the home
+  page is fine to show people.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
