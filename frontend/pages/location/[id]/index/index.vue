@@ -238,6 +238,8 @@
     const main = photos.find(a => a.primary) ?? photos[0];
     return main ? api.authURL(`/entities/${location.value!.id}/attachments/${main.id}`) : "";
   });
+  const mapCount = ref(0);
+  const hasMap = computed(() => mapCount.value > 0);
 </script>
 
 <template>
@@ -249,7 +251,7 @@
       <Title>{{ location.name }}</Title>
 
       <!-- Photo gallery -->
-      <section v-if="photos.length > 0" class="mb-4">
+      <section v-if="photos.length > 0 && !hasMap" class="mb-4">
         <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4">
           <button
             v-for="(photo, i) in photos"
@@ -366,6 +368,7 @@
         v-if="location && mapPhotoSrc && location.children && location.children.length"
         :photo-src="mapPhotoSrc"
         :areas="location.children"
+        @mapped="n => (mapCount = n)"
       />
 
       <!-- Details (notes, custom fields) -->
@@ -402,7 +405,7 @@
       </BaseCard>
 
       <!-- Items in this location -->
-      <section v-if="location && items">
+      <section v-if="location && items && !(hasMap && items.length === 0)">
         <LocationItemsBrowser
           :items="items"
           :container="{ id: location.id, name: location.name }"
@@ -411,8 +414,8 @@
         />
       </section>
 
-      <!-- Child locations -->
-      <section v-if="location && location.children && location.children.length > 0" class="mt-6">
+      <!-- Child locations (the map above already shows them when there is one) -->
+      <section v-if="location && location.children && location.children.length > 0 && !hasMap" class="mt-6">
         <BaseSectionHeader class="mb-5"> {{ $t("locations.child_locations") }} </BaseSectionHeader>
         <div class="grid grid-cols-1 gap-2 sm:grid-cols-3">
           <LocationCard v-for="child in location.children" :key="child.id" :location="child" />

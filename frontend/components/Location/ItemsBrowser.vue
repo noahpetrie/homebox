@@ -257,7 +257,8 @@
     </div>
 
     <p v-if="view !== 'table' && visible.length === 0" class="py-10 text-center text-muted-foreground">
-      Nothing matches “{{ query }}”.
+      <template v-if="query.trim() || typeFilter !== 'all'">Nothing matches “{{ query }}”.</template>
+      <template v-else>Nothing here yet.</template>
     </p>
 
     <!-- Grid -->
