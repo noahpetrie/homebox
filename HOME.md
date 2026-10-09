@@ -62,6 +62,8 @@ AGPL requires.
   drawer's compartments (Storage location type; the drawer photo is a generated empty insert).
 - **Packing without barcodes.** The packing bar can add items by name, create new items
   straight into the box, and pack an item by scanning its Homebox QR label.
+- **Item order on location pages.** While packing a box, its list shows newest packed first;
+  "Recently added" otherwise sorts by when an item last changed (moving it counts).
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
