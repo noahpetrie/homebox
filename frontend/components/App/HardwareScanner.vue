@@ -7,6 +7,7 @@
   import { toast } from "@/components/ui/sonner";
   import { DialogID, useDialog } from "~/components/ui/dialog-provider/utils";
   import type { EntitySummary } from "~~/lib/api/types/data-contracts";
+  import { lastScanSource } from "~/composables/use-scan-source";
 
   const api = useUserApi();
   const { activeDialog, openDialog, closeDialog } = useDialog();
@@ -98,6 +99,7 @@
         toast.info(`${found.length} items match ${code}`);
         await navigateTo({ path: "/items", query: { q: code } });
       } else {
+        lastScanSource.value = "handheld";
         openDialog(DialogID.ProductImport, { params: { barcode: code } });
       }
     } catch (err) {

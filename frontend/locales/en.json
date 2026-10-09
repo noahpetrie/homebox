@@ -904,7 +904,7 @@
         "error": "An error occurred while scanning",
         "invalid_url": "Invalid barcode URL",
         "no_sources": "No video sources available",
-        "permission_denied": "Camera permission denied, please allow access to the camera in your browser settings",
+        "permission_denied": "Camera access is off for this site. Use a handheld scanner, or allow camera access in your browser settings to scan with the camera.",
         "select_video_source": "Pick a video source",
         "title": "Scanner",
         "unsupported": "Media Stream API is not supported without HTTPS"

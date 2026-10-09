@@ -275,6 +275,7 @@
   import FormTextArea from "~/components/Form/TextArea.vue";
   import PhotoUploader from "~/components/Form/PhotoUploader.vue";
   import PhotoUploaderPreview from "~/components/Form/PhotoUploaderPreview.vue";
+  import { lastScanSource } from "~/composables/use-scan-source";
   import {
     deletePhoto,
     dataURLtoFile,
@@ -868,9 +869,15 @@
     loading.value = false;
 
     if (!close && wasScanned) {
-      // batch scanning: straight back to the camera for the next one
-      toast.info("Ready for the next scan");
-      openDialog(DialogID.Scanner);
+      // batch scanning: ready for the next one. After a camera scan that means the camera again;
+      // after a handheld-scanner scan, close the form so the next scan is picked up straight away.
+      if (lastScanSource.value === "handheld") {
+        closeDialog(DialogID.CreateEntity);
+        toast.info("Saved. Scan the next one");
+      } else {
+        toast.info("Ready for the next scan");
+        openDialog(DialogID.Scanner);
+      }
       return;
     }
 
