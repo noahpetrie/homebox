@@ -15,7 +15,6 @@
 
   const api = useUserApi();
   const fmt = await useFormatCurrency();
-  const flat = useFlatLocations();
 
   type Row = {
     id: string;
@@ -60,10 +59,12 @@
         progress.value++;
         if (!d) continue;
         const field = (n: string) => d.fields?.find(f => f.name === n)?.textValue ?? "";
-        const path = (flat.value.find(l => l.id === d.parent?.id)?.treeString ?? d.parent?.name ?? "").replace(
-          / > /g,
-          " › "
-        );
+        // full path, so things inside other things (an iPad's keyboard) still land in their room
+        const { data: trail } = await api.items.fullpath(d.id);
+        const path = (trail ?? [])
+          .filter(p => p.id !== d.id)
+          .map(p => p.name)
+          .join(" › ");
         const replacement = num(field("Replacement value"));
         const qty = d.quantity || 1;
         out.push({
