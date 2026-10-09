@@ -46,8 +46,21 @@
           <div
             class="pointer-events-none absolute inset-x-[12%] top-1/2 h-[28%] -translate-y-1/2 rounded-lg border-2 border-white/80 shadow-[0_0_0_9999px_rgba(0,0,0,0.25)]"
           />
+          <p
+            v-if="packTarget"
+            class="absolute inset-x-2 top-2 rounded-md bg-black/60 px-2 py-1 text-center text-xs font-medium text-white"
+          >
+            Packing into {{ packTarget.name }} · {{ packedLog.length }} added
+            <span v-if="packedLog[0]" class="block truncate opacity-80">Last: {{ packedLog[0].name }}</span>
+          </p>
           <p class="absolute inset-x-0 bottom-2 text-center text-xs font-medium text-white drop-shadow">
-            {{ detectedBarcode ? "" : "Hold the barcode inside the box, about 15 cm away" }}
+            {{
+              detectedBarcode
+                ? ""
+                : packTarget
+                  ? "Scan each item; the camera stays on"
+                  : "Hold the barcode inside the box, about 15 cm away"
+            }}
           </p>
         </div>
         <div class="mt-4 flex flex-col gap-3">
@@ -79,6 +92,7 @@
   import { computed, ref, watch } from "vue";
   import { BarcodeDetector, prepareZXingModule } from "barcode-detector";
   import { lastScanSource } from "~/composables/use-scan-source";
+  import { packCode, packedLog, packTarget } from "~/composables/use-packing";
   import { useI18n } from "vue-i18n";
   import { DialogID } from "@/components/ui/dialog-provider/utils";
   import { Dialog, DialogHeader, DialogScrollContent, DialogTitle } from "@/components/ui/dialog";
@@ -206,6 +220,10 @@
     lastCode = "";
   };
 
+  const api = useUserApi();
+  let lastPacked = "";
+  let lastPackedAt = 0;
+
   function onCode(rawValue: string, format: string) {
     if (format === "qr_code") {
       try {
@@ -223,6 +241,27 @@
     // Require two matching reads in a row so a half-seen barcode can't slip through.
     if (rawValue !== lastCode) {
       lastCode = rawValue;
+      return;
+    }
+
+    // Packing mode: keep the camera running and move each scanned item into the box.
+    if (packTarget.value) {
+      if (rawValue === lastPacked && Date.now() - lastPackedAt < 4000) return; // same item still in view
+      lastPacked = rawValue;
+      lastPackedAt = Date.now();
+      loading.value = true;
+      packCode(api, rawValue)
+        .then(result => {
+          if (result === "unknown") {
+            stopStream();
+            lastScanSource.value = "camera";
+            openDialog(DialogID.ProductImport, { params: { barcode: rawValue } });
+          }
+        })
+        .finally(() => {
+          loading.value = false;
+          lastCode = "";
+        });
       return;
     }
     detectedBarcode.value = rawValue;

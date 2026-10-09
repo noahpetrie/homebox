@@ -5,6 +5,8 @@
   import { filterZeroValues } from "~~/components/global/DetailsSection/types";
   import type { ItemAttachment } from "~~/lib/api/types/data-contracts";
   import MdiPackageVariant from "~icons/mdi/package-variant";
+  import MdiPackageVariantClosed from "~icons/mdi/package-variant-closed";
+  import { packTarget, startPacking, stopPacking } from "~/composables/use-packing";
   import MdiPlus from "~icons/mdi/plus";
   import MdiPencil from "~icons/mdi/pencil";
   import MdiDelete from "~icons/mdi/delete";
@@ -291,6 +293,17 @@
             </div>
             <div class="ml-auto mt-2 flex flex-wrap items-center justify-between gap-2">
               <LabelMaker :id="location.id" ref="labelMaker" type="location" menu />
+              <!-- Home fork: packing mode, scan items to move them here -->
+              <Button
+                v-if="packTarget?.id !== location.id"
+                variant="outline"
+                @click="startPacking({ id: location.id, name: location.name })"
+              >
+                <MdiPackageVariantClosed /> Pack items
+              </Button>
+              <Button v-else variant="secondary" @click="stopPacking">
+                <MdiPackageVariantClosed /> Done packing
+              </Button>
               <Button @click="openCreateItem">
                 <MdiPlus name="mdi-plus" />
                 {{ $t("components.location.create_item") }}

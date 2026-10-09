@@ -212,6 +212,7 @@
             </div>
           </div>
 
+          <AppPackingBar />
           <slot />
           <div class="grow" />
 
@@ -297,6 +298,7 @@
   import AppQuickMenuModal from "~/components/App/QuickMenuModal.vue";
   import AppScannerModal from "~/components/App/ScannerModal.vue";
   import AppHardwareScanner from "~/components/App/HardwareScanner.vue";
+  import AppPackingBar from "~/components/App/PackingBar.vue";
   import AppLogo from "~/components/App/Logo.vue";
   import AppHeaderDecor from "~/components/App/HeaderDecor.vue";
   import AppHeaderText from "~/components/App/HeaderText.vue";
