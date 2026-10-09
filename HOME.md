@@ -56,6 +56,12 @@ AGPL requires.
 - **Barcode fallbacks.** Products found are cached for a week (UPCitemDB's free tier allows
   ~100 lookups a day); Open Pet Food Facts is also queried. When nothing is found, the Import
   product dialog offers a Google search and "Add it anyway" (Create with the barcode saved).
+- **Location map.** A location whose sub-locations have a "Region" field (`x,y,w,h` in % of
+  the parent's main photo) shows that photo with the areas outlined, labelled with item counts;
+  hover highlights, click lists the contents (Open / Pack items here). Used for the ALEX
+  drawer's compartments (Storage location type; the drawer photo is a generated empty insert).
+- **Packing without barcodes.** The packing bar can add items by name, create new items
+  straight into the box, and pack an item by scanning its Homebox QR label.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
