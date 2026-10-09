@@ -78,6 +78,7 @@
   // barcode opens the lookup straight away once it has been read twice in a row.
   import { computed, ref, watch } from "vue";
   import { BarcodeDetector, prepareZXingModule } from "barcode-detector";
+  import { lastScanSource } from "~/composables/use-scan-source";
   import { useI18n } from "vue-i18n";
   import { DialogID } from "@/components/ui/dialog-provider/utils";
   import { Dialog, DialogHeader, DialogScrollContent, DialogTitle } from "@/components/ui/dialog";
@@ -229,6 +230,7 @@
     loading.value = true;
     stopStream();
     navigator.vibrate?.(60);
+    lastScanSource.value = "camera";
     openDialog(DialogID.ProductImport, { params: { barcode: rawValue } });
     loading.value = false;
   }
