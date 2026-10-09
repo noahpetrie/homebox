@@ -139,7 +139,7 @@
 
     <!-- contents, one section per area -->
     <div class="lg:col-span-2">
-      <div class="flex max-h-[72vh] flex-col overflow-y-auto rounded-lg border bg-card shadow-sm">
+      <div class="flex flex-col rounded-lg border bg-card shadow-sm lg:max-h-[72vh] lg:overflow-y-auto">
         <!-- things sitting directly in this location -->
         <div v-if="loose && loose.length" class="border-b-2 bg-muted/40 p-3">
           <div class="flex items-center gap-2">
