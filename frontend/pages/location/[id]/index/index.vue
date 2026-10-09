@@ -239,6 +239,13 @@
   });
   const mapCount = ref(0);
   const hasMap = computed(() => mapCount.value > 0);
+
+  // Home fork: full path of this location for the breadcrumb
+  const locationPath = computedAsync(async () => {
+    if (!location.value) return [];
+    const { data } = await api.items.fullpath(location.value.id);
+    return data ?? [];
+  }, []);
 </script>
 
 <template>
@@ -276,17 +283,22 @@
               <MdiPackageVariant class="size-7" />
             </div>
             <div>
-              <Breadcrumb v-if="location?.parent">
+              <!-- Home fork: the whole path (Office › ALEX › Drawer 1 › Top left), not just the parent -->
+              <Breadcrumb v-if="locationPath.length > 1">
                 <BreadcrumbList>
-                  <BreadcrumbItem>
-                    <BreadcrumbLink as-child class="text-foreground/70 hover:underline">
-                      <NuxtLink :to="`/location/${location.parent.id}`">
-                        {{ location.parent.name }}
-                      </NuxtLink>
-                    </BreadcrumbLink>
-                  </BreadcrumbItem>
-                  <BreadcrumbSeparator />
-                  <BreadcrumbItem> {{ location.name }} </BreadcrumbItem>
+                  <template v-for="(part, idx) in locationPath" :key="part.id">
+                    <BreadcrumbItem>
+                      <BreadcrumbLink
+                        v-if="idx < locationPath.length - 1"
+                        as-child
+                        class="text-foreground/70 hover:underline"
+                      >
+                        <NuxtLink :to="`/location/${part.id}`">{{ part.name }}</NuxtLink>
+                      </BreadcrumbLink>
+                      <template v-else>{{ part.name }}</template>
+                    </BreadcrumbItem>
+                    <BreadcrumbSeparator v-if="idx < locationPath.length - 1" />
+                  </template>
                 </BreadcrumbList>
               </Breadcrumb>
               <h1 class="flex items-center gap-3 pb-1 text-2xl">

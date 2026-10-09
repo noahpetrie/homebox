@@ -43,6 +43,11 @@
     openDialog(DialogID.CreateEntity, { params: { baseType: "item" } });
   }
 
+  // full location path for search results (Office › … › Top left)
+  const flatLocations = useFlatLocations();
+  const pathOf = (p: { id: string; name: string }) =>
+    flatLocations.value.find(l => l.id === p.id)?.treeString?.replace(/ > /g, " › ") || p.name;
+
   const thumb = (it: EntitySummary) =>
     it.imageId ? api.authURL(`/entities/${it.id}/attachments/${it.thumbnailId || it.imageId}`) : "";
 </script>
@@ -94,7 +99,7 @@
             </span>
             <span class="min-w-0 grow">
               <span class="block truncate">{{ it.name }}</span>
-              <span v-if="it.parent" class="block truncate text-xs text-muted-foreground">{{ it.parent.name }}</span>
+              <span v-if="it.parent" class="block truncate text-xs text-muted-foreground">{{ pathOf(it.parent) }}</span>
             </span>
           </button>
           <p v-if="!searching && !results.length" class="px-2 py-1.5 text-sm text-muted-foreground">Nothing found.</p>

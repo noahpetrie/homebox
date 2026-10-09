@@ -1,4 +1,5 @@
 <script setup lang="ts">
+  import LocationWhereMap from "~/components/Location/WhereMap.vue";
   import { useI18n } from "vue-i18n";
   import { toast } from "@/components/ui/sonner";
   import type { AnyDetail, Detail, Details } from "~~/components/global/DetailsSection/types";
@@ -781,6 +782,9 @@
           <Markdown class="text-base" :source="item.description" />
         </div>
       </Card>
+
+      <!-- Home fork: which compartment it's in, on the drawer's picture -->
+      <LocationWhereMap v-if="item.parent && !hasNested" class="mt-3" :location-id="item.parent.id" :path="fullpath" />
 
       <div class="mb-6 mt-3 flex flex-wrap items-center justify-between">
         <ButtonGroup>
