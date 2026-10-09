@@ -888,9 +888,9 @@
       await saveScannedIdentifiers(data.id, scannedProduct.value, bookDetails.value?.fields ?? []);
     }
     const wasScanned = !!scannedProduct.value;
-    if (packTarget.value && form.location?.id === packTarget.value.id && !selectedEntityType.value?.isLocation) {
-      notePacked({ id: data.id, name: data.name });
-    }
+    // noted after the photos are uploaded, since it refreshes the box's item list
+    const packed =
+      packTarget.value && form.location?.id === packTarget.value.id && !selectedEntityType.value?.isLocation;
     scannedProduct.value = null;
     duplicates.value = [];
     if (!selectedEntityType.value?.isLocation) {
@@ -922,6 +922,8 @@
         toast.success(t("components.entity.create_modal.toast.upload_success", { count: form.photos.length }));
       }
     }
+
+    if (packed) notePacked({ id: data.id, name: data.name });
 
     form.name = "";
     form.quantity = 1;
