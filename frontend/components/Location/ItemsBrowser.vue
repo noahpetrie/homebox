@@ -16,6 +16,7 @@
   import ItemCard from "~/components/Item/Card.vue";
   import ItemViewSelectable from "~/components/Item/View/Selectable.vue";
   import ItemContextMenu from "~/components/Location/ItemContextMenu.vue";
+  import { moveItem, PACKED_FROM, parsePackedFrom, type Place } from "~/composables/use-packing";
   import LocationSelector from "~/components/Location/Selector.vue";
   import { toast } from "@/components/ui/sonner";
   import { DialogRoot } from "reka-ui";
@@ -41,7 +42,7 @@
   });
 
   async function relocate(item: EntitySummary, target: { id: string; name: string }) {
-    const { error } = await api.items.patch(item.id, { id: item.id, parentId: target.id });
+    const { error } = await moveItem(api, item.id, target, null);
     if (error) {
       toast.error(`Couldn't move ${item.name}`);
       return;
@@ -50,8 +51,12 @@
     emit("refresh");
   }
 
+  // back to where packing took it from; otherwise the room the box is in
+  const takeOutTo = (item: EntitySummary): Place | null => extras.value[item.id]?.packedFrom ?? props.outside ?? null;
+
   function takeOut(item: EntitySummary) {
-    if (props.outside) relocate(item, props.outside);
+    const to = takeOutTo(item);
+    if (to) relocate(item, to);
   }
 
   function startMove(item: EntitySummary) {
@@ -90,15 +95,24 @@
 
   // Custom fields aren't in the list response, so load each item's details in the background
   // (a few at a time) for the author / year / ISBN shown and searched here.
-  type Extra = { author: string; year: string; isbn: string; manufacturer: string; model: string };
+  type Extra = {
+    author: string;
+    year: string;
+    isbn: string;
+    manufacturer: string;
+    model: string;
+    packedFrom: Place | null;
+  };
   const extras = ref<Record<string, Extra>>({});
+  const seenAt: Record<string, string> = {};
   const field = (fields: { name: string; textValue: string }[], name: string) =>
     fields.find(f => f.name.toLowerCase() === name)?.textValue ?? "";
 
   watch(
     () => props.items.map(i => i.id + i.updatedAt).join(),
     async () => {
-      const todo = props.items.filter(i => !extras.value[i.id]);
+      const todo = props.items.filter(i => !extras.value[i.id] || seenAt[i.id] !== String(i.updatedAt));
+      for (const i of todo) seenAt[i.id] = String(i.updatedAt);
       const queue = [...todo];
       const worker = async () => {
         while (queue.length) {
@@ -112,6 +126,7 @@
             isbn: field(data.fields, "isbn") || field(data.fields, "barcode"),
             manufacturer: data.manufacturer ?? "",
             model: data.modelNumber ?? "",
+            packedFrom: parsePackedFrom(data.fields.find(f => f.name === PACKED_FROM)?.textValue),
           };
         }
       };
@@ -251,7 +266,7 @@
         v-for="it in visible"
         :key="it.id"
         :item="it"
-        :outside="outside"
+        :outside="takeOutTo(it)"
         :container-name="container?.name"
         @take-out="takeOut"
         @move="startMove"
@@ -267,7 +282,7 @@
         v-for="it in visible"
         :key="it.id"
         :item="it"
-        :outside="outside"
+        :outside="takeOutTo(it)"
         :container-name="container?.name"
         @take-out="takeOut"
         @move="startMove"

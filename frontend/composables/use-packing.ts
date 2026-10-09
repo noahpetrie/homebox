@@ -5,7 +5,7 @@
 import { ref } from "vue";
 import { useSessionStorage } from "@vueuse/core";
 import { toast } from "@/components/ui/sonner";
-import type { EntitySummary } from "~~/lib/api/types/data-contracts";
+import type { EntityFieldData, EntitySummary, EntityUpdate } from "~~/lib/api/types/data-contracts";
 import type { UserClient } from "~~/lib/api/user";
 
 export type PackTarget = { id: string; name: string };
@@ -44,6 +44,42 @@ export async function findByCode(api: UserClient, code: string): Promise<EntityS
   return [...seen.values()];
 }
 
+// Where a packed item came from is kept on the item itself, as a "Packed from" field holding
+// a link to that location, so "Take out" can put it back there (on any device).
+export const PACKED_FROM = "Packed from";
+export type Place = { id: string; name: string };
+
+export function parsePackedFrom(value: string | undefined | null): Place | null {
+  const m = value?.match(/^\[(.*)\]\(\/location\/([0-9a-f-]{36})\)$/i);
+  return m ? { name: m[1]!, id: m[2]! } : null;
+}
+
+/** Moves an item, recording where it came from (packedFrom) or clearing that record (null). */
+export async function moveItem(api: UserClient, id: string, target: Place, packedFrom: Place | null) {
+  const { data: item, error } = await api.items.get(id);
+  if (error || !item) return { error: error ?? new Error("not found") };
+  const fields = (item.fields || []).filter(f => f.name !== PACKED_FROM);
+  if (packedFrom) {
+    fields.push({
+      id: null,
+      name: PACKED_FROM,
+      type: "text",
+      textValue: `[${packedFrom.name}](/location/${packedFrom.id})`,
+      numberValue: 0,
+      booleanValue: false,
+    } as unknown as EntityFieldData);
+  }
+  return await api.items.update(id, {
+    ...item,
+    parentId: target.id,
+    tagIds: (item.tags || []).map(t => t.id),
+    entityTypeId: item.entityType!.id,
+    purchasePrice: item.purchasePrice || 0,
+    soldPrice: item.soldPrice || 0,
+    fields,
+  } as unknown as EntityUpdate);
+}
+
 /**
  * Moves the item with this barcode into the pack target. Returns "unknown" when nothing in
  * Homebox has the code (the caller then starts the product lookup), otherwise "done".
@@ -66,7 +102,8 @@ export async function packCode(api: UserClient, code: string): Promise<"done" | 
     return "done";
   }
   const item = outside[0]!;
-  const { error } = await api.items.patch(item.id, { id: item.id, parentId: target.id });
+  const from = item.parent && item.parent.id !== target.id ? { id: item.parent.id, name: item.parent.name } : null;
+  const { error } = await moveItem(api, item.id, target, from);
   if (error) {
     toast.error(`Couldn't move ${item.name}`);
     return "done";
