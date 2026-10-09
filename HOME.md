@@ -38,6 +38,14 @@ AGPL requires.
   when several match), Homebox label QR codes open their page, and anything else starts the
   product lookup. Scans are told apart from typing by speed; the code can end with Enter,
   Tab or Down Arrow (the PecuMecu sends Down Arrow) or nothing.
+- **Book scans.** An ISBN switches the Create dialog to the Book type (without making it the
+  remembered type) and fills the title, author, publisher, year, pages, format and cover from
+  Open Library; the details are saved as custom fields next to the ISBN, with the publisher as
+  manufacturer. The Import product dialog falls back to Open Library when the product
+  databases (UPCitemDB's free tier is rate-limited) return nothing for an ISBN.
+- **Create dialog photos** are small thumbnails with delete / rotate / main-photo buttons.
+- **"Create and add another" after a scan** reopens the camera only after a camera scan; after
+  a handheld-scanner scan it closes the form and waits for the next scan.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
