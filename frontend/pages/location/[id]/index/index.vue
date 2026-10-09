@@ -6,7 +6,7 @@
   import type { ItemAttachment } from "~~/lib/api/types/data-contracts";
   import MdiPackageVariant from "~icons/mdi/package-variant";
   import MdiPackageVariantClosed from "~icons/mdi/package-variant-closed";
-  import { packTarget, startPacking, stopPacking } from "~/composables/use-packing";
+  import { packTarget, packVersion, startPacking, stopPacking } from "~/composables/use-packing";
   import MdiPlus from "~icons/mdi/plus";
   import MdiPencil from "~icons/mdi/pencil";
   import MdiDelete from "~icons/mdi/delete";
@@ -224,6 +224,9 @@
       watch: [locationId],
     }
   );
+
+  // Home fork: items scanned in packing mode appear here straight away
+  watch(packVersion, () => refreshItemList());
 </script>
 
 <template>
