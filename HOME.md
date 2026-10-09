@@ -58,7 +58,8 @@ AGPL requires.
   product dialog offers a Google search and "Add it anyway" (Create with the barcode saved).
 - **Location map.** A location whose sub-locations have a "Region" field (`x,y,w,h` in % of
   the parent's main photo) shows that photo with the areas outlined, labelled with item counts;
-  hover highlights, click lists the contents (Open / Pack items here). Used for the ALEX
+  each area shows thumbnails of its items; beside it a contents list has a section per area
+  (loose items first, empty areas on one line), linked to the map by hover and click. Used for the ALEX
   drawer's compartments (Storage location type; the drawer photo is a generated empty insert).
 - **Packing without barcodes.** The packing bar can add items by name, create new items
   straight into the box, and pack an item by scanning its Homebox QR label.
