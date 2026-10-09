@@ -42,6 +42,7 @@
   import DetailsSection from "~/components/global/DetailsSection/DetailsSection.vue";
   import BaseSectionHeader from "@/components/Base/SectionHeader.vue";
   import LocationItemsBrowser from "~/components/Location/ItemsBrowser.vue";
+  import LocationMap from "~/components/Location/Map.vue";
   import ItemAttachmentsList from "~/components/Item/AttachmentsList.vue";
   import ItemImageDialog from "~/components/Item/ImageDialog.vue";
   import LocationCard from "~/components/Location/Card.vue";
@@ -190,12 +191,15 @@
         type: "markdown",
         text: location.value.notes,
       },
-      ...(location.value.fields || []).map(field => {
-        return {
-          name: field.name,
-          text: field.textValue,
-        } as AnyDetail;
-      }),
+      // Home fork: "Region" (where this sits on its parent's photo) is shown as the map instead
+      ...(location.value.fields || [])
+        .filter(field => field.name !== "Region")
+        .map(field => {
+          return {
+            name: field.name,
+            text: field.textValue,
+          } as AnyDetail;
+        }),
     ];
 
     // Home fork: a location's details card only shows what's filled in.
@@ -227,6 +231,13 @@
 
   // Home fork: items scanned in packing mode appear here straight away
   watch(packVersion, () => refreshItemList());
+
+  // Home fork: the main photo, used as the backdrop of the compartment map
+  const mapPhotoSrc = computed(() => {
+    const photos = (location.value?.attachments ?? []).filter(a => a.type === "photo");
+    const main = photos.find(a => a.primary) ?? photos[0];
+    return main ? api.authURL(`/entities/${location.value!.id}/attachments/${main.id}`) : "";
+  });
 </script>
 
 <template>
@@ -349,6 +360,13 @@
         <Separator v-if="location && location.description" />
         <Markdown v-if="location && location.description" class="mt-3 text-base" :source="location.description" />
       </Card>
+
+      <!-- Home fork: interactive map of this location's photo with its compartments -->
+      <LocationMap
+        v-if="location && mapPhotoSrc && location.children && location.children.length"
+        :photo-src="mapPhotoSrc"
+        :areas="location.children"
+      />
 
       <!-- Details (notes, custom fields) -->
       <BaseCard v-if="locationDetails.length > 0" class="mt-4">
