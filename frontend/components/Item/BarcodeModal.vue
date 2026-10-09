@@ -165,6 +165,16 @@
 
     try {
       const result = await api.products.searchFromBarcode(barcode.trim());
+      // Home fork: books don't need the product databases (which are rate-limited and often
+      // miss them). When they come back empty for an ISBN, look the book up on Open Library.
+      if ((result.error || !result.data?.length) && /^97[89]\d{10}$/.test(barcode.trim())) {
+        const book = await openLibraryProduct(barcode.trim());
+        if (book) {
+          products.value = [book];
+          selectedRow.value = 0;
+          return;
+        }
+      }
       if (result.error) {
         errorMessage.value = t("errors.api_failure") + result.error;
         console.error(errorMessage.value);
@@ -182,6 +192,40 @@
       console.error(errorMessage.value);
     } finally {
       searching.value = false;
+    }
+  }
+
+  async function openLibraryProduct(isbn: string): Promise<BarcodeProduct | null> {
+    try {
+      const res = await fetch(`https://openlibrary.org/isbn/${isbn}.json`);
+      if (!res.ok) return null;
+      const ed = await res.json();
+      if (!ed?.title) return null;
+      let imageBase64 = "";
+      const cover = await fetch(`https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg?default=false`);
+      if (cover.ok) {
+        const blob = await cover.blob();
+        if (blob.size > 2000) {
+          imageBase64 = await new Promise<string>(resolve => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result as string);
+            reader.readAsDataURL(blob);
+          });
+        }
+      }
+      return {
+        barcode: isbn,
+        imageBase64,
+        imageURL: imageBase64 ? `https://covers.openlibrary.org/b/isbn/${isbn}-L.jpg` : "",
+        item: { name: ed.title, description: "" },
+        manufacturer: (ed.publishers ?? [])[0] ?? "",
+        modelNumber: isbn,
+        notes: "",
+        search_engine_name: "Open Library",
+      } as unknown as BarcodeProduct;
+    } catch (err) {
+      console.warn("Open Library lookup failed", err);
+      return null;
     }
   }
 
