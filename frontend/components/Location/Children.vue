@@ -34,6 +34,17 @@
   }
   const descendants = (n: TreeItem): string[] => [n.id, ...(n.children ?? []).flatMap(descendants)];
 
+  // compartments read like the drawer: top → middle → bottom, then left → right
+  const POS = ["top", "upper", "middle", "centre", "center", "lower", "bottom", "left", "right"];
+  const posKey = (name: string) =>
+    name
+      .toLowerCase()
+      .split(/\s+/)
+      .map(w => POS.indexOf(w))
+      .filter(i => i >= 0)
+      .map(i => String(i).padStart(2, "0"))
+      .join("") || "99";
+
   async function load() {
     const { data: tree } = await api.items.getTree();
     const parent = tree ? findNode(tree, props.parentId) : null;
@@ -43,10 +54,15 @@
         const ids = node ? descendants(node) : [a.id];
         const { data } = await api.items.getAll({ parentIds: ids, pageSize: 100 });
         const items = data?.items ?? [];
-        const subs = (node?.children ?? []).map(c => {
-          const inside = new Set(descendants(c));
-          return { id: c.id, name: c.name, total: items.filter(i => i.parent && inside.has(i.parent.id)).length };
-        });
+        const subs = [...(node?.children ?? [])]
+          .sort(
+            (x, y) =>
+              posKey(x.name).localeCompare(posKey(y.name)) || x.name.localeCompare(y.name, undefined, { numeric: true })
+          )
+          .map(c => {
+            const inside = new Set(descendants(c));
+            return { id: c.id, name: c.name, total: items.filter(i => i.parent && inside.has(i.parent.id)).length };
+          });
         return {
           id: a.id,
           name: a.name,
