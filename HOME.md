@@ -65,6 +65,10 @@ AGPL requires.
   straight into the box, and pack an item by scanning its Homebox QR label.
 - **Item order on location pages.** While packing a box, its list shows newest packed first;
   "Recently added" otherwise sorts by when an item last changed (moving it counts).
+- **Sub-locations as rows.** A location's sub-locations are full-width rows (natural order)
+  with item counts including nested compartments, thumbnails, and compartment chips in layout
+  order; empty ones are one line with "Pack here". The empty item list is hidden when things
+  live in sub-locations.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
