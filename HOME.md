@@ -71,6 +71,12 @@ AGPL requires.
   live in sub-locations.
 - **Dashboard.** No Total Value card (the value is in the insurance report), so the home
   page is fine to show people.
+- **Quick menu (⌘K).** Opens from anywhere (Ctrl+K off a Mac), also from inside a text field, and searches
+  items (any field, tracklists included) and locations as you type, next to the usual actions.
+- **Records.** A Record item type (Artist, Label, Catalog #, Released, Format, Genre, Barcode, conditions,
+  Discogs link; tracklist in the notes). `home/import-discogs.py <url> <token> "Living Room"` imports the
+  Discogs collection with covers (Discogs token from the Keychain item `discogs-token`); re-running it only
+  adds records that aren't in Homebox yet.
 - **Collapsed sidebar.** The Collection chevron is hidden in icon mode so the cog isn't
   cut off.
 
