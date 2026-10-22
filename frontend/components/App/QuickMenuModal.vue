@@ -67,6 +67,14 @@
   const thumb = (it: EntitySummary) =>
     it.imageId ? api.authURL(`/entities/${it.id}/attachments/${it.thumbnailId || it.imageId}`) : "";
 
+  // the menu's built-in filter is off (it remembers each row's text from when the row first
+  // appeared, which hid search results as you kept typing), so actions are filtered here
+  const matches = (text: string) =>
+    !query.value.trim() || text.toLowerCase().includes(query.value.trim().toLowerCase());
+  const createActions = computed(() => props.actions.filter(a => a.type === "create" && matches(a.text)));
+  const navActions = computed(() => props.actions.filter(a => a.type === "navigate" && matches(a.text)));
+  const showScanner = computed(() => matches(t("menu.scanner")));
+
   function open(it: EntitySummary) {
     closeDialog(DialogID.QuickMenu);
     query.value = "";
@@ -75,7 +83,7 @@
 </script>
 
 <template>
-  <CommandDialog :dialog-id="DialogID.QuickMenu">
+  <CommandDialog :dialog-id="DialogID.QuickMenu" ignore-filter>
     <CommandInput
       placeholder="Search items, or pick an action…"
       @input="(e: Event) => (query = (e.target as HTMLInputElement).value)"
@@ -126,13 +134,10 @@
         class="duration-150 animate-in fade-in-0"
         :class="searching ? 'opacity-60 transition-opacity' : 'transition-opacity'"
       >
-        <!-- matched on the server (maybe by author or ISBN), so the text value includes the query to
-             keep the menu's own text filter from hiding them -->
         <CommandItem
           v-for="it in results"
           :key="it.id"
           :value="`item-${it.id}`"
-          :text-value="`${it.name} ${query}`"
           class="gap-3"
           @select="
             (e: Event) => {
@@ -149,9 +154,9 @@
           </div>
         </CommandItem>
       </CommandGroup>
-      <CommandGroup :heading="t('global.create')">
+      <CommandGroup v-if="createActions.length" :heading="t('global.create')">
         <CommandItem
-          v-for="(create, i) in props.actions.filter(item => item.type === 'create')"
+          v-for="(create, i) in createActions"
           :key="`$global.create_${i + 1}`"
           :value="create.text"
           @select="
@@ -165,10 +170,10 @@
           <Shortcut v-if="'shortcut' in create" class="ml-auto" size="sm" :keys="[create.shortcut]" />
         </CommandItem>
       </CommandGroup>
-      <CommandSeparator />
-      <CommandGroup :heading="t('global.navigate')">
+      <CommandSeparator v-if="createActions.length && (navActions.length || showScanner)" />
+      <CommandGroup v-if="navActions.length || showScanner" :heading="t('global.navigate')">
         <CommandItem
-          v-for="(navigate, i) in props.actions.filter(item => item.type === 'navigate')"
+          v-for="(navigate, i) in navActions"
           :key="navigate.text"
           :value="`global.navigate_${i + 1}`"
           @select="
@@ -181,6 +186,7 @@
           {{ navigate.text }}
         </CommandItem>
         <CommandItem
+          v-if="showScanner"
           value="scanner"
           @select="
             () => {
