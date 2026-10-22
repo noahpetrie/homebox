@@ -28,7 +28,7 @@
   const { t } = useI18n();
   const { closeDialog, openDialog } = useDialog();
 
-  useDialogHotkey(DialogID.QuickMenu, { code: "Backquote", ctrl: true });
+  useDialogHotkey(DialogID.QuickMenu, { code: "KeyK", mod: true });
 </script>
 
 <template>
