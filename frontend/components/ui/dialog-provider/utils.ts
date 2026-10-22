@@ -159,8 +159,12 @@ export const [useDialog, provideDialogContext] = createContext<{
 type HotkeyKey = {
   shift?: boolean;
   ctrl?: boolean;
+  // Home fork: ⌘ on a Mac, Ctrl elsewhere; these also fire while typing in a field
+  mod?: boolean;
   code: string;
 };
+
+const isMac = typeof navigator !== "undefined" && /Mac|iPhone|iPad/.test(navigator.platform);
 
 export function useDialogHotkey<T extends NoParamDialogIDs | OptionalDialogIDs>(dialogId: T, key: HotkeyKey): void;
 export function useDialogHotkey<T extends RequiredDialogIDs>(
@@ -181,11 +185,12 @@ export function useDialogHotkey(dialogId: DialogID, key: HotkeyKey, getParams?: 
     passive: false,
     onEventFired: event => {
       if (
-        notUsingInput.value &&
+        (notUsingInput.value || key.mod) &&
         event.type === "keydown" &&
         event.code === key.code &&
         (key.shift === undefined || event.shiftKey === key.shift) &&
-        (key.ctrl === undefined || event.ctrlKey === key.ctrl)
+        (key.ctrl === undefined || event.ctrlKey === key.ctrl) &&
+        (key.mod === undefined || (isMac ? event.metaKey : event.ctrlKey) === key.mod)
       ) {
         if (getParams) {
           openDialog(dialogId as RequiredDialogIDs, {
