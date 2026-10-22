@@ -39,10 +39,16 @@
   // the query the shown results belong to; while it differs from what's typed a search is under way
   const resultsFor = ref("");
   const searching = computed(() => !!query.value.trim() && resultsFor.value !== query.value.trim());
+  // Answers can arrive out of order. Show any answer newer than the one on screen, so results
+  // follow the typing ("neil" while "neil young" is still on its way), but never an older one.
+  let sent = 0;
+  let shown = 0;
   const search = useDebounceFn(async (q: string) => {
     if (!q) return;
+    const n = ++sent;
     const { data } = await api.items.getAll({ q, pageSize: 8 });
-    if (query.value.trim() !== q) return; // typed on since; a newer search will answer
+    if (n < shown || !query.value.trim()) return;
+    shown = n;
     results.value = data?.items ?? [];
     resultsFor.value = q;
   }, 120);
