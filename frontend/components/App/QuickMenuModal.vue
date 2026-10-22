@@ -35,20 +35,29 @@
   const api = useUserApi();
   const query = ref("");
   const results = ref<EntitySummary[]>([]);
+  // the query the shown results belong to; while it differs from what's typed a search is under way
+  const resultsFor = ref("");
+  const searching = computed(() => !!query.value.trim() && resultsFor.value !== query.value.trim());
   const search = useDebounceFn(async (q: string) => {
-    if (!q) {
-      results.value = [];
-      return;
-    }
+    if (!q) return;
     const { data } = await api.items.getAll({ q, pageSize: 8 });
-    if (query.value.trim() === q) results.value = data?.items ?? [];
-  }, 200);
-  watch(query, q => search(q.trim()));
+    if (query.value.trim() !== q) return; // typed on since; a newer search will answer
+    results.value = data?.items ?? [];
+    resultsFor.value = q;
+  }, 120);
+  watch(query, q => {
+    if (!q.trim()) {
+      results.value = [];
+      resultsFor.value = "";
+    }
+    search(q.trim());
+  });
   // start empty each time the menu opens
   watch(activeDialog, d => {
     if (d === DialogID.QuickMenu) {
       query.value = "";
       results.value = [];
+      resultsFor.value = "";
     }
   });
 
@@ -96,10 +105,27 @@
         }
       "
     />
-    <CommandList>
+    <!-- fixed height, so the menu doesn't shrink and grow while typing -->
+    <CommandList class="h-[300px]">
       <CommandSeparator />
-      <CommandEmpty>{{ t("components.quick_menu.no_results") }}</CommandEmpty>
-      <CommandGroup v-if="query.trim() && results.length" heading="Items">
+      <CommandEmpty v-if="!searching">{{ t("components.quick_menu.no_results") }}</CommandEmpty>
+      <!-- until the first results arrive: placeholder rows where they will appear -->
+      <div v-if="searching && !results.length" class="px-2 pb-1" aria-busy="true">
+        <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Items</div>
+        <div v-for="n in 3" :key="n" class="flex items-center gap-3 px-2 py-1.5">
+          <div class="size-8 shrink-0 animate-pulse rounded bg-muted" />
+          <div class="grow space-y-1.5">
+            <div class="h-3 animate-pulse rounded bg-muted" :style="{ width: `${70 - n * 12}%` }" />
+            <div class="h-2.5 w-1/4 animate-pulse rounded bg-muted/70" />
+          </div>
+        </div>
+      </div>
+      <CommandGroup
+        v-if="query.trim() && results.length"
+        heading="Items"
+        class="duration-150 animate-in fade-in-0"
+        :class="searching ? 'opacity-60 transition-opacity' : 'transition-opacity'"
+      >
         <!-- matched on the server (maybe by author or ISBN), so the text value includes the query to
              keep the menu's own text filter from hiding them -->
         <CommandItem
