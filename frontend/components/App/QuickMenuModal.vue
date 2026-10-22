@@ -13,6 +13,7 @@
   import { Shortcut } from "~/components/ui/shortcut";
   import { useDialog, useDialogHotkey } from "~/components/ui/dialog-provider";
   import type { EntitySummary } from "~~/lib/api/types/data-contracts";
+  import MdiMapMarkerOutline from "~icons/mdi/map-marker-outline";
 
   export type QuickMenuAction =
     | { text: string; href: string; type: "navigate" }
@@ -64,6 +65,17 @@
   const flatLocations = useFlatLocations();
   const pathOf = (p: { id: string; name: string }) =>
     flatLocations.value.find(l => l.id === p.id)?.treeString?.replace(/ > /g, " › ") || p.name;
+  // locations are already loaded for the paths above, so they're matched here by name, instantly
+  const locationMatches = computed(() => {
+    const q = query.value.trim().toLowerCase();
+    if (!q) return [];
+    return flatLocations.value
+      .filter(l => l.name.toLowerCase().includes(q))
+      .sort((a, b) => Number(!a.name.toLowerCase().startsWith(q)) - Number(!b.name.toLowerCase().startsWith(q)))
+      .slice(0, 5);
+  });
+  const parentPath = (treeString?: string) => treeString?.split(" > ").slice(0, -1).join(" › ") ?? "";
+
   const thumb = (it: EntitySummary) =>
     it.imageId ? api.authURL(`/entities/${it.id}/attachments/${it.thumbnailId || it.imageId}`) : "";
 
@@ -118,6 +130,32 @@
       <CommandSeparator />
       <CommandEmpty v-if="!searching">{{ t("components.quick_menu.no_results") }}</CommandEmpty>
       <!-- until the first results arrive: placeholder rows where they will appear -->
+      <CommandGroup v-if="locationMatches.length" heading="Locations">
+        <CommandItem
+          v-for="l in locationMatches"
+          :key="l.id"
+          :value="`location-${l.id}`"
+          class="gap-3"
+          @select="
+            (e: Event) => {
+              e.preventDefault();
+              closeDialog(DialogID.QuickMenu);
+              query = '';
+              navigateTo(`/location/${l.id}`);
+            }
+          "
+        >
+          <div class="flex size-8 shrink-0 items-center justify-center rounded bg-muted text-muted-foreground">
+            <MdiMapMarkerOutline class="size-4" />
+          </div>
+          <div class="min-w-0">
+            <div class="truncate">{{ l.name }}</div>
+            <div v-if="parentPath(l.treeString)" class="truncate text-xs text-muted-foreground">
+              {{ parentPath(l.treeString) }}
+            </div>
+          </div>
+        </CommandItem>
+      </CommandGroup>
       <div v-if="searching && !results.length" class="px-2 pb-1" aria-busy="true">
         <div class="px-2 py-1.5 text-xs font-medium text-muted-foreground">Items</div>
         <div v-for="n in 3" :key="n" class="flex items-center gap-3 px-2 py-1.5">
