@@ -12,6 +12,7 @@
   } from "~/components/ui/command";
   import { Shortcut } from "~/components/ui/shortcut";
   import { useDialog, useDialogHotkey } from "~/components/ui/dialog-provider";
+  import type { EntitySummary } from "~~/lib/api/types/data-contracts";
 
   export type QuickMenuAction =
     | { text: string; href: string; type: "navigate" }
@@ -26,18 +27,55 @@
   });
 
   const { t } = useI18n();
-  const { closeDialog, openDialog } = useDialog();
+  const { closeDialog, openDialog, activeDialog } = useDialog();
 
   useDialogHotkey(DialogID.QuickMenu, { code: "KeyK", mod: true });
+
+  // Home fork: typing searches items and locations (name, author, ISBN, … as on the search page)
+  const api = useUserApi();
+  const query = ref("");
+  const results = ref<EntitySummary[]>([]);
+  const search = useDebounceFn(async (q: string) => {
+    if (!q) {
+      results.value = [];
+      return;
+    }
+    const { data } = await api.items.getAll({ q, pageSize: 8 });
+    if (query.value.trim() === q) results.value = data?.items ?? [];
+  }, 200);
+  watch(query, q => search(q.trim()));
+  // start empty each time the menu opens
+  watch(activeDialog, d => {
+    if (d === DialogID.QuickMenu) {
+      query.value = "";
+      results.value = [];
+    }
+  });
+
+  const flatLocations = useFlatLocations();
+  const pathOf = (p: { id: string; name: string }) =>
+    flatLocations.value.find(l => l.id === p.id)?.treeString?.replace(/ > /g, " › ") || p.name;
+  const thumb = (it: EntitySummary) =>
+    it.imageId ? api.authURL(`/entities/${it.id}/attachments/${it.thumbnailId || it.imageId}`) : "";
+
+  function open(it: EntitySummary) {
+    closeDialog(DialogID.QuickMenu);
+    query.value = "";
+    navigateTo(`/${it.entityType?.isLocation ? "location" : "item"}/${it.id}`);
+  }
 </script>
 
 <template>
   <CommandDialog :dialog-id="DialogID.QuickMenu">
     <CommandInput
-      :placeholder="t('components.quick_menu.shortcut_hint')"
+      placeholder="Search items, or pick an action…"
+      @input="(e: Event) => (query = (e.target as HTMLInputElement).value)"
       @keydown="
         (e: KeyboardEvent) => {
-          const item = props.actions.filter(item => 'shortcut' in item).find(item => item.shortcut === e.key);
+          // number keys pick an action only before anything is typed, so '1984' can be searched
+          const item = query
+            ? undefined
+            : props.actions.filter(item => 'shortcut' in item).find(item => item.shortcut === e.key);
           if (item) {
             e.preventDefault();
             if (item.dialogId === DialogID.CreateEntity) {
@@ -61,6 +99,30 @@
     <CommandList>
       <CommandSeparator />
       <CommandEmpty>{{ t("components.quick_menu.no_results") }}</CommandEmpty>
+      <CommandGroup v-if="query.trim() && results.length" heading="Items">
+        <!-- matched on the server (maybe by author or ISBN), so the text value includes the query to
+             keep the menu's own text filter from hiding them -->
+        <CommandItem
+          v-for="it in results"
+          :key="it.id"
+          :value="`item-${it.id}`"
+          :text-value="`${it.name} ${query}`"
+          class="gap-3"
+          @select="
+            (e: Event) => {
+              e.preventDefault();
+              open(it);
+            }
+          "
+        >
+          <img v-if="thumb(it)" :src="thumb(it)" alt="" class="size-8 shrink-0 rounded object-cover" />
+          <div v-else class="size-8 shrink-0 rounded bg-muted" />
+          <div class="min-w-0">
+            <div class="truncate">{{ it.name }}</div>
+            <div v-if="it.parent" class="truncate text-xs text-muted-foreground">{{ pathOf(it.parent) }}</div>
+          </div>
+        </CommandItem>
+      </CommandGroup>
       <CommandGroup :heading="t('global.create')">
         <CommandItem
           v-for="(create, i) in props.actions.filter(item => item.type === 'create')"
